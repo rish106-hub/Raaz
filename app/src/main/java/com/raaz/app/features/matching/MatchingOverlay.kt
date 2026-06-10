@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -22,6 +23,7 @@ import com.raaz.app.ui.theme.RaazBackground
 fun MatchingOverlay(
     state: MatchingState,
     onCancel: () -> Unit,
+    onMatched: (matchId: String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     if (state is MatchingState.Idle) {
@@ -54,6 +56,8 @@ fun MatchingOverlay(
                         color = Color.White.copy(alpha = 0.6f),
                         fontSize = 14.sp
                     )
+                    Spacer(modifier = Modifier.height(32.dp))
+                    RaazButton(text = "Cancel", onClick = onCancel)
                 }
 
                 is MatchingState.TimeoutFallback -> {
@@ -72,9 +76,14 @@ fun MatchingOverlay(
                     )
                     Spacer(modifier = Modifier.height(24.dp))
                     TimerComponent(timerText = formattedTime)
+                    Spacer(modifier = Modifier.height(32.dp))
+                    RaazButton(text = "Cancel", onClick = onCancel)
                 }
 
                 is MatchingState.Matched -> {
+                    LaunchedEffect(state) {
+                        onMatched(state.matchId)
+                    }
                     Text(
                         text = "Connected!",
                         color = Color.White,
@@ -102,15 +111,14 @@ fun MatchingOverlay(
                         color = Color.White.copy(alpha = 0.6f),
                         fontSize = 14.sp
                     )
+                    Spacer(modifier = Modifier.height(32.dp))
+                    RaazButton(text = "Cancel", onClick = onCancel)
                 }
 
                 is MatchingState.Idle -> {
-                    // Already handled at start of function
+                    // handled at top of function
                 }
             }
-
-            Spacer(modifier = Modifier.height(32.dp))
-            RaazButton(text = "Cancel", onClick = onCancel)
         }
     }
 }
