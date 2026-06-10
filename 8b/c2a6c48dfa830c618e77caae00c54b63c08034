@@ -1,0 +1,21 @@
+app/src/main/java/com/raaz/app/data/websocket/WebSocketEvent.kt
+  s_178a905c0b0d55::t_da643c03cecfc7 1-77
+app/src/main/java/com/raaz/app/data/websocket/WebSocketClient.kt
+  s_178a905c0b0d55::t_bf4864b06a4c28 1-208
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "8bc2a6c48dfa830c618e77caae00c54b63c08034",
+  "prompts": {},
+  "sessions": {
+    "s_178a905c0b0d55": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a3e5487f-ad91-4580-9fb9-0bfb002e88b3",
+        "model": "claude-haiku-4-5-20251001"
+      },
+      "human_author": "RISHAV DEWAN <rishavdewan10@gmail.com>"
+    }
+  }
+}
