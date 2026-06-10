@@ -1,0 +1,21 @@
+app/src/main/java/com/raaz/app/data/OnboardingDataStore.kt
+  s_4d514729322491::t_08369d0645694e 1-37
+app/src/main/java/com/raaz/app/features/onboarding/OnboardingViewModel.kt
+  s_4d514729322491::t_e967109a17b578 1-51
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "9117a7206d3b38c5d5eedc9cd5516e741fe27ff2",
+  "prompts": {},
+  "sessions": {
+    "s_4d514729322491": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0f74ccf6-a41a-4bc0-b7c3-837b285e5b6b",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "RISHAV DEWAN <rishavdewan10@gmail.com>"
+    }
+  }
+}
