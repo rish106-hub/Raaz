@@ -2,7 +2,6 @@ package main
 
 import (
 	"crypto/rand"
-	"encoding/json"
 	"fmt"
 	"log"
 	mathrand "math/rand"
@@ -76,8 +75,11 @@ func runRelay(src, dst *Client) {
 	}()
 
 	for msg := range src.recv {
-		enriched := injectAlias(msg, src.alias)
-		dst.safeSend(enriched)
+		out := routeMessage(msg, src)
+		if out == nil {
+			continue // invalid or unknown frame — dropped
+		}
+		dst.safeSend(out)
 	}
 }
 
@@ -88,81 +90,6 @@ func notifyDisconnect(c *Client) {
 		return
 	}
 	c.safeSend(data)
-}
-
-// injectAlias rewrites senderAlias in MESSAGE and TYPING payloads with
-// the server-assigned alias so clients cannot spoof each other's identities.
-// All other event types are forwarded unchanged.
-func injectAlias(raw []byte, alias string) []byte {
-	var env Envelope
-	if err := json.Unmarshal(raw, &env); err != nil {
-		return raw
-	}
-
-	switch env.Type {
-	case EventMessage:
-		var p MessagePayload
-		if err := json.Unmarshal(env.Payload, &p); err != nil {
-			return raw
-		}
-		p.SenderAlias = alias
-		out, err := marshalEnvelope(EventMessage, p)
-		if err != nil {
-			return raw
-		}
-		return out
-
-	case EventTyping:
-		var p TypingPayload
-		if err := json.Unmarshal(env.Payload, &p); err != nil {
-			return raw
-		}
-		p.SenderAlias = alias
-		out, err := marshalEnvelope(EventTyping, p)
-		if err != nil {
-			return raw
-		}
-		return out
-
-	case EventExtensionRequest:
-		var p ExtensionRequestPayload
-		if err := json.Unmarshal(env.Payload, &p); err != nil {
-			return raw
-		}
-		p.RequesterAlias = alias
-		out, err := marshalEnvelope(EventExtensionRequest, p)
-		if err != nil {
-			return raw
-		}
-		return out
-
-	case EventExtensionResponse:
-		var p ExtensionResponsePayload
-		if err := json.Unmarshal(env.Payload, &p); err != nil {
-			return raw
-		}
-		p.ResponderAlias = alias
-		out, err := marshalEnvelope(EventExtensionResponse, p)
-		if err != nil {
-			return raw
-		}
-		return out
-
-	case EventHandleExchange:
-		var p HandleExchangePayload
-		if err := json.Unmarshal(env.Payload, &p); err != nil {
-			return raw
-		}
-		p.UserAlias = alias
-		out, err := marshalEnvelope(EventHandleExchange, p)
-		if err != nil {
-			return raw
-		}
-		return out
-	}
-
-	// EventHandleRevealed and others forwarded verbatim.
-	return raw
 }
 
 // disconnectMsg is a pre-serialised DISCONNECT frame for use in tests.
