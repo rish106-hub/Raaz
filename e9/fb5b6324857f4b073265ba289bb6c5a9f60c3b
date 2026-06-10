@@ -1,0 +1,38 @@
+app/src/main/java/com/raaz/app/data/repository/ChatRepository.kt
+  s_178a905c0b0d55::t_32606aac4e5e07 42-43
+  s_178a905c0b0d55::t_4ef2cdccebcb56 4,8
+app/src/main/java/com/raaz/app/features/chat/ChatViewModelFactory.kt
+  s_178a905c0b0d55::t_e61ae9a32995c1 36,45
+app/src/main/java/com/raaz/app/features/chat/ChatViewModel.kt
+  s_178a905c0b0d55::t_cef23aa7556493 3,9-13,16,18-19,21,23,29-34,36,40-42,61-62,70-80,89-90,97-131,262-285
+app/src/main/java/com/raaz/app/data/room/RaazDatabase.kt
+  s_178a905c0b0d55::t_a8873129c2b2bd 1-31
+app/src/main/java/com/raaz/app/data/worker/DeletionWorker.kt
+  s_178a905c0b0d55::t_d0490a72f1b82b 1-20
+app/src/main/java/com/raaz/app/data/room/ChatSession.kt
+  s_178a905c0b0d55::t_60cd995617ed26 1-12
+app/src/main/java/com/raaz/app/data/repository/VaultRepository.kt
+  s_178a905c0b0d55::t_ba2edbb96f791d 1-15
+app/src/main/java/com/raaz/app/data/room/VaultDao.kt
+  s_178a905c0b0d55::t_50cf4a4d116127 1-22
+app/src/main/java/com/raaz/app/features/chat/ChatScreen.kt
+  s_178a905c0b0d55::t_67fe85d24b525f 3,5,11,14,34,47,62,67,77-78,81-86,93-109,138-144,175-181,285-339,462,466-467,480-485
+app/src/main/java/com/raaz/app/data/room/VaultMessage.kt
+  s_178a905c0b0d55::t_e3bdace5f081a2 1-15
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "e9fb5b6324857f4b073265ba289bb6c5a9f60c3b",
+  "prompts": {},
+  "sessions": {
+    "s_178a905c0b0d55": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a3e5487f-ad91-4580-9fb9-0bfb002e88b3",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "RISHAV DEWAN <rishavdewan10@gmail.com>"
+    }
+  }
+}
