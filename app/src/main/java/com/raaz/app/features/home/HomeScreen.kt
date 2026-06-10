@@ -2,6 +2,7 @@ package com.raaz.app.features.home
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,7 +21,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -40,6 +40,7 @@ import java.util.Locale
 @Composable
 fun HomeScreen(
     onEcho: (String) -> Unit,
+    onVault: () -> Unit = {},
     viewModel: HomeViewModel = viewModel(),
     matchingViewModel: MatchingViewModel? = null
 ) {
@@ -65,62 +66,74 @@ fun HomeScreen(
                 .padding(24.dp),
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Raaz",
-                color = Color.White,
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = (-0.5).sp
-            )
-            Text(
-                text = LocalDate.now()
-                    .format(DateTimeFormatter.ofPattern("d MMM", Locale.ENGLISH)),
-                color = Color.White.copy(alpha = 0.35f),
-                fontSize = 14.sp
-            )
-        }
-
-        Column {
-            Text(
-                text = "TODAY'S PROMPT",
-                color = RaazAccent,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.SemiBold,
-                letterSpacing = 2.sp
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(RaazSurface, RoundedCornerShape(12.dp))
-                    .border(1.dp, Color.White.copy(alpha = 0.07f), RoundedCornerShape(12.dp))
-                    .padding(24.dp)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = prompt,
+                    text = "Raaz",
                     color = Color.White,
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Medium,
-                    lineHeight = 32.sp
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = (-0.5).sp
                 )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Vault",
+                        color = RaazAccent,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.clickable { onVault() }
+                    )
+                    Text(
+                        text = LocalDate.now()
+                            .format(DateTimeFormatter.ofPattern("d MMM", Locale.ENGLISH)),
+                        color = Color.White.copy(alpha = 0.35f),
+                        fontSize = 14.sp
+                    )
+                }
             }
-        }
 
-        Column {
-            Text(
-                text = "Tap Echo to get matched with someone\nwho chose the same prompt.",
-                color = Color.White.copy(alpha = 0.35f),
-                fontSize = 13.sp,
-                lineHeight = 20.sp
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            RaazButton(text = "Echo", onClick = { actualMatchingViewModel.startMatching(prompt) })
-        }
+            Column {
+                Text(
+                    text = "TODAY'S PROMPT",
+                    color = RaazAccent,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = 2.sp
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(RaazSurface, RoundedCornerShape(12.dp))
+                        .border(1.dp, Color.White.copy(alpha = 0.07f), RoundedCornerShape(12.dp))
+                        .padding(24.dp)
+                ) {
+                    Text(
+                        text = prompt,
+                        color = Color.White,
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Medium,
+                        lineHeight = 32.sp
+                    )
+                }
+            }
+
+            Column {
+                Text(
+                    text = "Tap Echo to get matched with someone\nwho chose the same prompt.",
+                    color = Color.White.copy(alpha = 0.35f),
+                    fontSize = 13.sp,
+                    lineHeight = 20.sp
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                RaazButton(text = "Echo", onClick = { actualMatchingViewModel.startMatching(prompt) })
+            }
         }
 
         MatchingOverlay(

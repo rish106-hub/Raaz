@@ -10,6 +10,7 @@ import androidx.navigation.navArgument
 import com.raaz.app.features.chat.ChatScreen
 import com.raaz.app.features.home.HomeScreen
 import com.raaz.app.features.onboarding.OnboardingScreen
+import com.raaz.app.features.vault.VaultScreen
 
 @Composable
 fun NavGraph(
@@ -30,6 +31,9 @@ fun NavGraph(
             HomeScreen(
                 onEcho = { prompt ->
                     navController.navigate(Screen.Chat.createRoute(prompt))
+                },
+                onVault = {
+                    navController.navigate(Screen.Vault.route)
                 }
             )
         }
@@ -40,6 +44,11 @@ fun NavGraph(
             val prompt = Uri.decode(backStackEntry.arguments?.getString("prompt").orEmpty())
             ChatScreen(
                 prompt = prompt,
+                onBack = { navController.popBackStack() }
+            )
+        }
+        composable(Screen.Vault.route) {
+            VaultScreen(
                 onBack = { navController.popBackStack() }
             )
         }

@@ -8,4 +8,5 @@ sealed class Screen(val route: String) {
     object Chat : Screen("chat/{prompt}") {
         fun createRoute(prompt: String) = "chat/${Uri.encode(prompt)}"
     }
+    object Vault : Screen("vault")
 }
