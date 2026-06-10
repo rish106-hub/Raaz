@@ -1,0 +1,21 @@
+app/src/main/java/com/raaz/app/features/matching/MatchingOverlay.kt
+  s_178a905c0b0d55::t_21c17028f5e437 11,26,59-60,79-80,84-86,114-115,119
+app/src/main/java/com/raaz/app/features/home/HomeScreen.kt
+  s_178a905c0b0d55::t_38e28a9cdfff3d 124,128-132,134
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "0f97d6e0da8fa3ba18773bab7e4e4f2f589c6084",
+  "prompts": {},
+  "sessions": {
+    "s_178a905c0b0d55": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a3e5487f-ad91-4580-9fb9-0bfb002e88b3",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "RISHAV DEWAN <rishavdewan10@gmail.com>"
+    }
+  }
+}
