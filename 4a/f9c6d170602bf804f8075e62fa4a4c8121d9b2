@@ -1,0 +1,22 @@
+app/src/main/java/com/raaz/app/features/chat/ChatViewModel.kt
+  s_178a905c0b0d55::t_d1238877e49cc9 99
+  s_178a905c0b0d55::t_7d83b05b487aee 55-56
+  s_178a905c0b0d55::t_230ca4c22aa14d 122-130,133-134
+  s_178a905c0b0d55::t_c5a0b1fa5d6243 200
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "4af9c6d170602bf804f8075e62fa4a4c8121d9b2",
+  "prompts": {},
+  "sessions": {
+    "s_178a905c0b0d55": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a3e5487f-ad91-4580-9fb9-0bfb002e88b3",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "RISHAV DEWAN <rishavdewan10@gmail.com>"
+    }
+  }
+}
