@@ -1,9 +1,11 @@
 package com.raaz.app.data.repository
 
 import com.raaz.app.data.models.ChatMessage
+import com.raaz.app.data.websocket.ConnectionState
 import com.raaz.app.data.websocket.WebSocketClient
 import com.raaz.app.data.websocket.WebSocketEvent
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.map
 import java.util.UUID
@@ -37,6 +39,8 @@ class ChatRepository(
     private val webSocketClient: WebSocketClient,
     private val currentUserAlias: String
 ) {
+    val connectionState: StateFlow<ConnectionState> = webSocketClient.connectionState
+
     fun getMessages(): Flow<ChatMessage> {
         return webSocketClient.events
             .filterIsInstance<WebSocketEvent.Message>()

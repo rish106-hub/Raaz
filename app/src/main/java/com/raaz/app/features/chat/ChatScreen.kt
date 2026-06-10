@@ -1,18 +1,21 @@
 package com.raaz.app.features.chat
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
-import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -28,6 +31,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -40,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.raaz.app.data.models.ChatMessage
+import com.raaz.app.data.websocket.ConnectionState
 import com.raaz.app.ui.theme.RaazAccent
 import com.raaz.app.ui.theme.RaazBackground
 import com.raaz.app.ui.theme.RaazSurface
@@ -54,11 +59,12 @@ fun ChatScreen(
         val context = LocalContext.current
         val application = context.applicationContext as android.app.Application
         val alias = remember { "Raaz #${(1000..9999).random()}" }
-        val factory = remember { ChatViewModelFactory(application, WS_URL, alias) }
+        val factory = remember { ChatViewModelFactory(application, WS_URL, alias, prompt) }
         viewModel(factory = factory)
     }
 ) {
     val timerText by viewModel.timerText.collectAsState()
+    val deletionCountdown by viewModel.deletionCountdown.collectAsState()
     val inputText by viewModel.inputText.collectAsState()
     val sessionAlias by viewModel.sessionAlias.collectAsState()
     val messages by viewModel.messages.collectAsState()
@@ -68,7 +74,15 @@ fun ChatScreen(
     val partnerHandleExchange by viewModel.partnerHandleExchange.collectAsState()
     val userApprovedHandle by viewModel.userApprovedHandle.collectAsState()
     val partnerHandle by viewModel.partnerHandle.collectAsState()
+    val connectionState by viewModel.connectionState.collectAsState()
+    val pendingVaultMessage by viewModel.pendingVaultMessage.collectAsState()
     val userHandle = viewModel.getVisibleUserHandle()
+
+    LaunchedEffect(Unit) {
+        viewModel.vaultSaveSuccess.collect {
+            // Vault save confirmed — could show snackbar here in future
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -76,6 +90,23 @@ fun ChatScreen(
             .background(RaazBackground)
             .systemBarsPadding()
     ) {
+        if (connectionState == ConnectionState.RECONNECTING) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color(0xFFFFA500).copy(alpha = 0.12f))
+                    .padding(horizontal = 16.dp, vertical = 6.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "Reconnecting...",
+                    color = Color(0xFFFFA500),
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+        }
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -104,6 +135,13 @@ fun ChatScreen(
                         fontSize = 11.sp,
                         maxLines = 1
                     )
+                    if (deletionCountdown.isNotEmpty()) {
+                        Text(
+                            text = deletionCountdown,
+                            color = Color.White.copy(alpha = 0.22f),
+                            fontSize = 10.sp
+                        )
+                    }
                 }
             }
             TimerComponent(timerText = timerText)
@@ -134,8 +172,13 @@ fun ChatScreen(
                     }
                 }
             } else {
-                items(messages) { message ->
-                    MessageBubble(message = message)
+                items(messages, key = { it.messageId }) { message ->
+                    MessageBubble(
+                        message = message,
+                        onLongClick = if (message.isOwnMessage) {
+                            { viewModel.requestVaultSave(message) }
+                        } else null
+                    )
                 }
             }
             if (isTyping) {
@@ -235,6 +278,61 @@ fun ChatScreen(
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold
                 )
+            }
+        }
+    }
+
+    if (pendingVaultMessage != null) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.5f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth(0.8f)
+                    .background(RaazSurface, RoundedCornerShape(12.dp))
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "Save to Vault?",
+                    color = Color.White,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "This message will be stored locally on your device. You can delete it anytime from your Vault. Your consent is required under DPDP Act 2023.",
+                    color = Color.White.copy(alpha = 0.55f),
+                    fontSize = 12.sp,
+                    lineHeight = 18.sp
+                )
+                Spacer(modifier = Modifier.height(20.dp))
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    OutlinedButton(
+                        onClick = { viewModel.cancelVaultSave() },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.3f)),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
+                    ) {
+                        Text(text = "Cancel", fontSize = 12.sp)
+                    }
+                    OutlinedButton(
+                        onClick = { viewModel.confirmVaultSave() },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, RaazAccent),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = RaazAccent)
+                    ) {
+                        Text(text = "Save to Vault", fontSize = 12.sp)
+                    }
+                }
             }
         }
     }
@@ -361,10 +459,12 @@ fun ChatScreen(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun MessageBubble(
     message: ChatMessage,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onLongClick: (() -> Unit)? = null
 ) {
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -376,6 +476,13 @@ fun MessageBubble(
                 .background(
                     if (message.isOwnMessage) RaazAccent.copy(alpha = 0.2f) else RaazSurface,
                     RoundedCornerShape(12.dp)
+                )
+                .then(
+                    if (onLongClick != null) {
+                        Modifier.combinedClickable(onClick = {}, onLongClick = onLongClick)
+                    } else {
+                        Modifier
+                    }
                 )
                 .padding(12.dp)
         ) {

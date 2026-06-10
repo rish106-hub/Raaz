@@ -1,29 +1,44 @@
 package com.raaz.app.features.chat
 
+import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import android.app.Application
 import com.raaz.app.data.models.ChatMessage
 import com.raaz.app.data.repository.ChatRepository
 import com.raaz.app.data.repository.ExtensionRequest
-import com.raaz.app.data.repository.ExtensionResponse
-import com.raaz.app.data.repository.HandleExchangeState
-import com.raaz.app.data.repository.HandleReveal
-import com.raaz.app.data.repository.TypingState
+import com.raaz.app.data.repository.VaultRepository
+import com.raaz.app.data.room.ChatSession
+import com.raaz.app.data.room.ChatSessionDao
+import com.raaz.app.data.room.VaultMessage
+import com.raaz.app.data.websocket.ConnectionState
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 class ChatViewModel(
     application: Application,
     private val chatRepository: ChatRepository? = null,
-    private val currentUserAlias: String = "Raaz #${(1000..9999).random()}"
+    private val currentUserAlias: String = "Raaz #${(1000..9999).random()}",
+    private val vaultRepository: VaultRepository? = null,
+    private val chatSessionDao: ChatSessionDao? = null,
+    val sessionId: String = java.util.UUID.randomUUID().toString(),
+    private val sessionStartTime: Long = System.currentTimeMillis(),
+    private val prompt: String = ""
 ) : AndroidViewModel(application) {
+
     private val _timerText = MutableStateFlow("20:00")
     val timerText: StateFlow<String> = _timerText.asStateFlow()
+
+    private val _deletionCountdown = MutableStateFlow("")
+    val deletionCountdown: StateFlow<String> = _deletionCountdown.asStateFlow()
 
     private val _inputText = MutableStateFlow("")
     val inputText: StateFlow<String> = _inputText.asStateFlow()
@@ -43,14 +58,25 @@ class ChatViewModel(
     private val _extensionRequest = MutableStateFlow<ExtensionRequest?>(null)
     val extensionRequest: StateFlow<ExtensionRequest?> = _extensionRequest.asStateFlow()
 
-    private val _partnerHandleExchange = MutableStateFlow<HandleExchangeState?>(null)
-    val partnerHandleExchange: StateFlow<HandleExchangeState?> = _partnerHandleExchange.asStateFlow()
+    private val _partnerHandleExchange = MutableStateFlow<com.raaz.app.data.repository.HandleExchangeState?>(null)
+    val partnerHandleExchange: StateFlow<com.raaz.app.data.repository.HandleExchangeState?> = _partnerHandleExchange.asStateFlow()
 
     private val _userApprovedHandle = MutableStateFlow(false)
     val userApprovedHandle: StateFlow<Boolean> = _userApprovedHandle.asStateFlow()
 
     private val _partnerHandle = MutableStateFlow<String?>(null)
     val partnerHandle: StateFlow<String?> = _partnerHandle.asStateFlow()
+
+    private val _pendingVaultMessage = MutableStateFlow<ChatMessage?>(null)
+    val pendingVaultMessage: StateFlow<ChatMessage?> = _pendingVaultMessage.asStateFlow()
+
+    private val _vaultSaveSuccess = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val vaultSaveSuccess: SharedFlow<Unit> = _vaultSaveSuccess.asSharedFlow()
+
+    val connectionState: StateFlow<ConnectionState> = chatRepository
+        ?.connectionState
+        ?.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ConnectionState.DISCONNECTED)
+        ?: MutableStateFlow(ConnectionState.DISCONNECTED).asStateFlow()
 
     private var timerJob: Job? = null
     private var remainingMs: Long = 20 * 60 * 1000L
@@ -60,10 +86,47 @@ class ChatViewModel(
 
     init {
         startTimer()
+        startDeletionCountdown()
+        recordSession()
         subscribeToMessages()
         subscribeToTyping()
         subscribeToExtensionEvents()
         subscribeToHandleExchange()
+    }
+
+    private fun recordSession() {
+        viewModelScope.launch {
+            chatSessionDao?.insertSession(
+                ChatSession(
+                    sessionId = sessionId,
+                    startedAt = sessionStartTime,
+                    prompt = prompt,
+                    partnerAlias = ""
+                )
+            )
+        }
+    }
+
+    private fun startDeletionCountdown() {
+        updateDeletionLabel()
+        viewModelScope.launch {
+            while (true) {
+                delay(60_000L)
+                updateDeletionLabel()
+            }
+        }
+    }
+
+    private fun updateDeletionLabel() {
+        val deleteAt = sessionStartTime + 48L * 60 * 60 * 1000
+        val remaining = deleteAt - System.currentTimeMillis()
+        _deletionCountdown.value = if (remaining > 0) {
+            val hours = remaining / (60 * 60 * 1000L)
+            val minutes = (remaining % (60 * 60 * 1000L)) / (60 * 1000L)
+            "Deletes in ${hours}h ${minutes}m"
+        } else {
+            "Data deleted"
+        }
     }
 
     private fun subscribeToMessages() {
@@ -194,6 +257,32 @@ class ChatViewModel(
 
     fun getVisibleUserHandle(): String? {
         return if (_userApprovedHandle.value && _partnerHandle.value != null) userHandle else null
+    }
+
+    fun requestVaultSave(message: ChatMessage) {
+        _pendingVaultMessage.value = message
+    }
+
+    fun confirmVaultSave() {
+        val message = _pendingVaultMessage.value ?: return
+        _pendingVaultMessage.value = null
+        viewModelScope.launch {
+            vaultRepository?.saveMessage(
+                VaultMessage(
+                    messageId = message.messageId,
+                    text = message.text,
+                    senderAlias = message.senderAlias,
+                    sessionId = sessionId,
+                    prompt = prompt,
+                    savedAt = System.currentTimeMillis()
+                )
+            )
+            _vaultSaveSuccess.emit(Unit)
+        }
+    }
+
+    fun cancelVaultSave() {
+        _pendingVaultMessage.value = null
     }
 
     override fun onCleared() {
