@@ -1,0 +1,21 @@
+app/src/main/java/com/raaz/app/data/websocket/WebSocketClient.kt
+  s_178a905c0b0d55::t_1ff6a4b1fc04fa 4-8,12,18
+  s_178a905c0b0d55::t_f0ccc79fe696ba 94,102-105,107
+  s_178a905c0b0d55::t_75ff0befb8522a 32
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "2e4c01a59846f8991523a488e478b5d5c2b1cd75",
+  "prompts": {},
+  "sessions": {
+    "s_178a905c0b0d55": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a3e5487f-ad91-4580-9fb9-0bfb002e88b3",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "RISHAV DEWAN <rishavdewan10@gmail.com>"
+    }
+  }
+}
