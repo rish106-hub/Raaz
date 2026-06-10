@@ -1,0 +1,22 @@
+gradle/libs.versions.toml
+  s_178a905c0b0d55::t_109b817fd0c088 28-31
+  s_178a905c0b0d55::t_d49a1a5ee31e55 10-13
+app/build.gradle.kts
+  s_178a905c0b0d55::t_b92e4849df4209 49-52
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "1d4b9b3cffd3e1b324da3fc1d317ecd931dd2ead",
+  "prompts": {},
+  "sessions": {
+    "s_178a905c0b0d55": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a3e5487f-ad91-4580-9fb9-0bfb002e88b3",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "RISHAV DEWAN <rishavdewan10@gmail.com>"
+    }
+  }
+}
