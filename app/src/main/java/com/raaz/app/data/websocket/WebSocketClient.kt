@@ -1,6 +1,7 @@
 package com.raaz.app.data.websocket
 
 import android.util.Log
+import com.google.gson.JsonParser
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -8,7 +9,10 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -29,6 +33,9 @@ class WebSocketClient(
     private val _events = MutableSharedFlow<WebSocketEvent>(replay = 1)
     val events: Flow<WebSocketEvent> = _events.asSharedFlow()
 
+    private val _connectionState = MutableStateFlow(ConnectionState.DISCONNECTED)
+    val connectionState: StateFlow<ConnectionState> = _connectionState.asStateFlow()
+
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var isConnected = false
     private var reconnectAttempts = 0
@@ -46,6 +53,7 @@ class WebSocketClient(
                 Log.d("WebSocket", "Connected")
                 isConnected = true
                 reconnectAttempts = 0
+                _connectionState.value = ConnectionState.CONNECTED
             }
 
             override fun onMessage(webSocket: WebSocket, text: String) {
@@ -60,17 +68,24 @@ class WebSocketClient(
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: okhttp3.Response?) {
                 Log.e("WebSocket", "Connection failed: ${t.message}")
                 isConnected = false
+                if (reconnectAttempts < maxReconnectAttempts) {
+                    _connectionState.value = ConnectionState.RECONNECTING
+                } else {
+                    _connectionState.value = ConnectionState.DISCONNECTED
+                }
                 attemptReconnect()
             }
 
             override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
                 Log.d("WebSocket", "Closing: $reason")
                 isConnected = false
+                _connectionState.value = ConnectionState.DISCONNECTED
             }
 
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
                 Log.d("WebSocket", "Closed: $reason")
                 isConnected = false
+                _connectionState.value = ConnectionState.DISCONNECTED
             }
         })
     }
@@ -91,6 +106,7 @@ class WebSocketClient(
 
     fun disconnect() {
         isConnected = false
+        _connectionState.value = ConnectionState.DISCONNECTED
         scope.cancel()
         webSocket?.close(1000, "User disconnect")
         webSocket = null
@@ -110,55 +126,51 @@ class WebSocketClient(
 
     private fun parseWebSocketMessage(json: String): WebSocketEvent {
         return try {
-            when {
-                json.contains("\"type\":\"CONNECTED\"") -> {
-                    val matchId = extractString(json, "matchId")
-                    val partnerAlias = extractString(json, "partnerAlias")
-                    val sessionDurationSeconds = extractLong(json, "sessionDurationSeconds")
-                    WebSocketEvent.Connected(matchId, partnerAlias, sessionDurationSeconds)
-                }
-                json.contains("\"type\":\"MESSAGE\"") -> {
-                    val messageId = extractString(json, "messageId")
-                    val text = extractString(json, "text")
-                    val senderAlias = extractString(json, "senderAlias")
-                    val timestamp = extractLong(json, "timestamp")
-                    WebSocketEvent.Message(messageId, text, senderAlias, timestamp)
-                }
-                json.contains("\"type\":\"TYPING\"") -> {
-                    val isTyping = extractBoolean(json, "isTyping")
-                    val senderAlias = extractString(json, "senderAlias")
-                    WebSocketEvent.Typing(isTyping, senderAlias)
-                }
-                json.contains("\"type\":\"EXTENSION_REQUEST\"") -> {
-                    val requesterId = extractString(json, "requesterId")
-                    val requesterAlias = extractString(json, "requesterAlias")
-                    WebSocketEvent.ExtensionRequest(requesterId, requesterAlias)
-                }
-                json.contains("\"type\":\"EXTENSION_RESPONSE\"") -> {
-                    val approved = extractBoolean(json, "approved")
-                    val responderAlias = extractString(json, "responderAlias")
-                    WebSocketEvent.ExtensionResponse(approved, responderAlias)
-                }
-                json.contains("\"type\":\"HANDLE_EXCHANGE\"") -> {
-                    val userId = extractString(json, "userId")
-                    val userAlias = extractString(json, "userAlias")
-                    val approved = extractBoolean(json, "approved")
-                    WebSocketEvent.HandleExchange(userId, userAlias, approved)
-                }
-                json.contains("\"type\":\"HANDLE_REVEALED\"") -> {
-                    val partnerHandle = extractString(json, "partnerHandle")
-                    WebSocketEvent.HandleRevealed(partnerHandle)
-                }
-                json.contains("\"type\":\"ERROR\"") -> {
-                    val message = extractString(json, "message")
-                    val code = extractStringOrNull(json, "code")
-                    WebSocketEvent.Error(message, code)
-                }
-                json.contains("\"type\":\"DISCONNECT\"") -> {
-                    val reason = extractString(json, "reason")
-                    WebSocketEvent.Disconnect(reason)
-                }
-                else -> throw IllegalArgumentException("Unknown event type")
+            val root = JsonParser.parseString(json).asJsonObject
+            val type = root.get("type")?.asString
+                ?: throw IllegalArgumentException("Missing type field")
+            val p = root.getAsJsonObject("payload") ?: root
+
+            when (type) {
+                "CONNECTED" -> WebSocketEvent.Connected(
+                    matchId = p.get("matchId")?.asString ?: "",
+                    partnerAlias = p.get("partnerAlias")?.asString ?: "",
+                    sessionDurationSeconds = p.get("sessionDurationSeconds")?.asLong ?: 0L
+                )
+                "MESSAGE" -> WebSocketEvent.Message(
+                    messageId = p.get("messageId")?.asString ?: "",
+                    text = p.get("text")?.asString ?: "",
+                    senderAlias = p.get("senderAlias")?.asString ?: "",
+                    timestamp = p.get("timestamp")?.asLong ?: 0L
+                )
+                "TYPING" -> WebSocketEvent.Typing(
+                    isTyping = p.get("isTyping")?.asBoolean ?: false,
+                    senderAlias = p.get("senderAlias")?.asString ?: ""
+                )
+                "EXTENSION_REQUEST" -> WebSocketEvent.ExtensionRequest(
+                    requesterId = p.get("requesterId")?.asString ?: "",
+                    requesterAlias = p.get("requesterAlias")?.asString ?: ""
+                )
+                "EXTENSION_RESPONSE" -> WebSocketEvent.ExtensionResponse(
+                    approved = p.get("approved")?.asBoolean ?: false,
+                    responderAlias = p.get("responderAlias")?.asString ?: ""
+                )
+                "HANDLE_EXCHANGE" -> WebSocketEvent.HandleExchange(
+                    userId = p.get("userId")?.asString ?: "",
+                    userAlias = p.get("userAlias")?.asString ?: "",
+                    approved = p.get("approved")?.asBoolean ?: false
+                )
+                "HANDLE_REVEALED" -> WebSocketEvent.HandleRevealed(
+                    partnerHandle = p.get("partnerHandle")?.asString ?: ""
+                )
+                "ERROR" -> WebSocketEvent.Error(
+                    message = p.get("message")?.asString ?: "Unknown error",
+                    code = if (p.has("code") && !p.get("code").isJsonNull) p.get("code").asString else null
+                )
+                "DISCONNECT" -> WebSocketEvent.Disconnect(
+                    reason = p.get("reason")?.asString ?: ""
+                )
+                else -> throw IllegalArgumentException("Unknown event type: $type")
             }
         } catch (e: Exception) {
             Log.e("WebSocket", "Parse error: ${e.message}")
@@ -168,43 +180,24 @@ class WebSocketClient(
 
     private fun serializeEvent(event: WebSocketEvent): String {
         return when (event) {
-            is WebSocketEvent.Message -> {
+            is WebSocketEvent.Message ->
                 """{"type":"MESSAGE","payload":{"messageId":"${event.messageId}","text":"${escapeJson(event.text)}","senderAlias":"${event.senderAlias}","timestamp":${event.timestamp}}}"""
-            }
-            is WebSocketEvent.Typing -> {
+            is WebSocketEvent.Typing ->
                 """{"type":"TYPING","payload":{"isTyping":${event.isTyping},"senderAlias":"${event.senderAlias}"}}"""
-            }
-            is WebSocketEvent.ExtensionRequest -> {
+            is WebSocketEvent.ExtensionRequest ->
                 """{"type":"EXTENSION_REQUEST","payload":{"requesterId":"${event.requesterId}","requesterAlias":"${event.requesterAlias}"}}"""
-            }
-            is WebSocketEvent.ExtensionResponse -> {
+            is WebSocketEvent.ExtensionResponse ->
                 """{"type":"EXTENSION_RESPONSE","payload":{"approved":${event.approved},"responderAlias":"${event.responderAlias}"}}"""
-            }
-            is WebSocketEvent.HandleExchange -> {
+            is WebSocketEvent.HandleExchange ->
                 """{"type":"HANDLE_EXCHANGE","payload":{"userId":"${event.userId}","userAlias":"${event.userAlias}","approved":${event.approved}}}"""
-            }
+            is WebSocketEvent.Connected ->
+                """{"type":"CONNECTED","payload":{"matchId":"${event.matchId}","partnerAlias":"${event.partnerAlias}","sessionDurationSeconds":${event.sessionDurationSeconds}}}"""
+            is WebSocketEvent.Error ->
+                """{"type":"ERROR","payload":{"message":"${escapeJson(event.message)}","code":${event.code?.let { "\"$it\"" } ?: "null"}}}"""
+            is WebSocketEvent.Disconnect ->
+                """{"type":"DISCONNECT","payload":{"reason":"${escapeJson(event.reason)}"}}"""
             else -> "{}"
         }
-    }
-
-    private fun extractString(json: String, key: String): String {
-        val regex = """"$key"\s*:\s*"([^"]*)"""".toRegex()
-        return regex.find(json)?.groupValues?.get(1) ?: ""
-    }
-
-    private fun extractStringOrNull(json: String, key: String): String? {
-        val regex = """"$key"\s*:\s*"([^"]*)"""".toRegex()
-        return regex.find(json)?.groupValues?.get(1)
-    }
-
-    private fun extractLong(json: String, key: String): Long {
-        val regex = """"$key"\s*:\s*(\d+)""".toRegex()
-        return regex.find(json)?.groupValues?.get(1)?.toLongOrNull() ?: 0L
-    }
-
-    private fun extractBoolean(json: String, key: String): Boolean {
-        val regex = """"$key"\s*:\s*(true|false)""".toRegex()
-        return regex.find(json)?.groupValues?.get(1) == "true"
     }
 
     private fun escapeJson(text: String): String {

@@ -121,7 +121,7 @@ fun HomeScreen(
             Spacer(modifier = Modifier.height(12.dp))
             RaazButton(text = "Echo", onClick = { actualMatchingViewModel.startMatching(prompt) })
         }
-        } // end inner Column
+        }
 
         MatchingOverlay(
             state = matchingState,
@@ -131,5 +131,5 @@ fun HomeScreen(
                 onEcho(prompt)
             }
         )
-    } // end Box
+    }
 }
