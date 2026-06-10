@@ -1,0 +1,19 @@
+.gitignore
+  s_4d514729322491::t_2ad9d6a93d4ccb 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "643b1737efa5521eef9e950cd5fe9cc41597589b",
+  "prompts": {},
+  "sessions": {
+    "s_4d514729322491": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0f74ccf6-a41a-4bc0-b7c3-837b285e5b6b",
+        "model": "claude-haiku-4-5-20251001"
+      },
+      "human_author": "RISHAV DEWAN <rishavdewan10@gmail.com>"
+    }
+  }
+}
