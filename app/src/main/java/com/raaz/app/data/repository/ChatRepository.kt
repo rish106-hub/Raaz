@@ -13,6 +13,16 @@ data class TypingState(
     val isTyping: Boolean
 )
 
+data class ExtensionRequest(
+    val requesterId: String,
+    val requesterAlias: String
+)
+
+data class ExtensionResponse(
+    val approved: Boolean,
+    val responderAlias: String
+)
+
 class ChatRepository(
     private val webSocketClient: WebSocketClient,
     private val currentUserAlias: String
@@ -57,6 +67,44 @@ class ChatRepository(
         val event = WebSocketEvent.Typing(
             isTyping = isTyping,
             senderAlias = currentUserAlias
+        )
+        webSocketClient.send(event)
+    }
+
+    fun getExtensionRequests(): Flow<ExtensionRequest> {
+        return webSocketClient.events
+            .filterIsInstance<WebSocketEvent.ExtensionRequest>()
+            .map { event ->
+                ExtensionRequest(
+                    requesterId = event.requesterId,
+                    requesterAlias = event.requesterAlias
+                )
+            }
+    }
+
+    fun getExtensionResponses(): Flow<ExtensionResponse> {
+        return webSocketClient.events
+            .filterIsInstance<WebSocketEvent.ExtensionResponse>()
+            .map { event ->
+                ExtensionResponse(
+                    approved = event.approved,
+                    responderAlias = event.responderAlias
+                )
+            }
+    }
+
+    fun sendExtensionRequest(requesterId: String) {
+        val event = WebSocketEvent.ExtensionRequest(
+            requesterId = requesterId,
+            requesterAlias = currentUserAlias
+        )
+        webSocketClient.send(event)
+    }
+
+    fun sendExtensionResponse(approved: Boolean) {
+        val event = WebSocketEvent.ExtensionResponse(
+            approved = approved,
+            responderAlias = currentUserAlias
         )
         webSocketClient.send(event)
     }

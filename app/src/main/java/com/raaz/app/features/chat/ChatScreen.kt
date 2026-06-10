@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -53,6 +54,7 @@ fun ChatScreen(
     val messages by viewModel.messages.collectAsState()
     val isTyping by viewModel.isTyping.collectAsState()
     val partnerTyping by viewModel.partnerTyping.collectAsState()
+    val extensionRequest by viewModel.extensionRequest.collectAsState()
 
     Column(
         modifier = Modifier
@@ -145,16 +147,17 @@ fun ChatScreen(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             OutlinedButton(
-                onClick = {},
-                enabled = false,
+                onClick = { viewModel.requestExtension("partner-id") },
+                enabled = extensionRequest == null,
                 modifier = Modifier.weight(1f),
                 shape = RoundedCornerShape(8.dp),
                 border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f)),
                 colors = ButtonDefaults.outlinedButtonColors(
-                    disabledContentColor = Color.White.copy(alpha = 0.25f)
+                    disabledContentColor = Color.White.copy(alpha = 0.25f),
+                    contentColor = Color.White
                 )
             ) {
-                Text(text = "+10 min", fontSize = 12.sp)
+                Text(text = if (extensionRequest != null) "Pending..." else "+10 min", fontSize = 12.sp)
             }
             OutlinedButton(
                 onClick = {},
@@ -214,6 +217,54 @@ fun ChatScreen(
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold
                 )
+            }
+        }
+    }
+
+    if (extensionRequest != null) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.5f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth(0.8f)
+                    .background(RaazSurface, RoundedCornerShape(12.dp))
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "${extensionRequest!!.requesterAlias} wants to extend chat by 10 minutes",
+                    color = Color.White,
+                    fontSize = 14.sp,
+                    lineHeight = 20.sp
+                )
+                Spacer(modifier = Modifier.padding(16.dp))
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    OutlinedButton(
+                        onClick = { viewModel.respondToExtension(false) },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.3f)),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
+                    ) {
+                        Text(text = "Decline", fontSize = 12.sp)
+                    }
+                    OutlinedButton(
+                        onClick = { viewModel.respondToExtension(true) },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, RaazAccent),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = RaazAccent)
+                    ) {
+                        Text(text = "Approve", fontSize = 12.sp)
+                    }
+                }
             }
         }
     }

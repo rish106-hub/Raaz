@@ -6,6 +6,8 @@ import androidx.lifecycle.viewModelScope
 import android.app.Application
 import com.raaz.app.data.models.ChatMessage
 import com.raaz.app.data.repository.ChatRepository
+import com.raaz.app.data.repository.ExtensionRequest
+import com.raaz.app.data.repository.ExtensionResponse
 import com.raaz.app.data.repository.TypingState
 import com.raaz.app.data.websocket.WebSocketClient
 import kotlinx.coroutines.Job
@@ -38,14 +40,19 @@ class ChatViewModel(
     private val _isTyping = MutableStateFlow(false)
     val isTyping: StateFlow<Boolean> = _isTyping.asStateFlow()
 
+    private val _extensionRequest = MutableStateFlow<ExtensionRequest?>(null)
+    val extensionRequest: StateFlow<ExtensionRequest?> = _extensionRequest.asStateFlow()
+
     private var countDownTimer: CountDownTimer? = null
     private var typingDebounceJob: Job? = null
     private var typingStopJob: Job? = null
+    private var timerMs: Long = 20 * 60 * 1000L
 
     init {
         startTimer()
         subscribeToMessages()
         subscribeToTyping()
+        subscribeToExtensionEvents()
     }
 
     private fun subscribeToMessages() {
@@ -63,6 +70,24 @@ class ChatViewModel(
             viewModelScope.launch {
                 chatRepository.getTypingState().collect { state ->
                     _partnerTyping.value = state.isTyping
+                }
+            }
+        }
+    }
+
+    private fun subscribeToExtensionEvents() {
+        if (chatRepository != null) {
+            viewModelScope.launch {
+                chatRepository.getExtensionRequests().collect { request ->
+                    _extensionRequest.value = request
+                }
+            }
+            viewModelScope.launch {
+                chatRepository.getExtensionResponses().collect { response ->
+                    if (response.approved) {
+                        timerMs += 600 * 1000
+                    }
+                    _extensionRequest.value = null
                 }
             }
         }
@@ -117,12 +142,13 @@ class ChatViewModel(
         }
     }
 
-    fun extendSession(additionalSeconds: Long) {
-        val currentTimeMs = _timerText.value.split(":").let { (m, s) ->
-            (m.toLongOrNull() ?: 0) * 60000 + (s.toLongOrNull() ?: 0) * 1000
-        }
-        val newTimeMs = currentTimeMs + additionalSeconds * 1000
-        _timerText.value = formatTime(newTimeMs)
+    fun requestExtension(userId: String) {
+        chatRepository?.sendExtensionRequest(userId)
+    }
+
+    fun respondToExtension(approved: Boolean) {
+        chatRepository?.sendExtensionResponse(approved)
+        _extensionRequest.value = null
     }
 
     private fun formatTime(milliseconds: Long): String {
