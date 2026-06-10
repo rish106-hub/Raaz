@@ -1,0 +1,23 @@
+app/src/main/java/com/raaz/app/features/chat/TimerComponent.kt
+  s_4d514729322491::t_4a0bc0b32418b2 1-30
+app/src/main/java/com/raaz/app/features/chat/ChatScreen.kt
+  s_4d514729322491::t_4d4982fd446ab2 1-194
+app/src/main/java/com/raaz/app/features/chat/ChatViewModel.kt
+  s_4d514729322491::t_b263723fe3c14e 1-50
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "b122c0b01cd7034845d635e5d742ac96e8eb094d",
+  "prompts": {},
+  "sessions": {
+    "s_4d514729322491": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0f74ccf6-a41a-4bc0-b7c3-837b285e5b6b",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "RISHAV DEWAN <rishavdewan10@gmail.com>"
+    }
+  }
+}
