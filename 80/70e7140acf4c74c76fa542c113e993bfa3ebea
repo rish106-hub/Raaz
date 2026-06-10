@@ -1,0 +1,21 @@
+server/router.go
+  s_178a905c0b0d55::t_b0be54dd4f712f 1-106
+server/session.go
+  s_178a905c0b0d55::t_4c51dba24d0d6d 78-82
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "8070e7140acf4c74c76fa542c113e993bfa3ebea",
+  "prompts": {},
+  "sessions": {
+    "s_178a905c0b0d55": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a3e5487f-ad91-4580-9fb9-0bfb002e88b3",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "RISHAV DEWAN <rishavdewan10@gmail.com>"
+    }
+  }
+}
