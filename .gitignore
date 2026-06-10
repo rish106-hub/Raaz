@@ -1,1 +1,21 @@
 PRD.md
+
+# Gradle
+.gradle/
+build/
+**/build/
+
+# Local Android config
+local.properties
+*.iml
+
+# IDE
+.idea/
+*.DS_Store
+
+# Android generated
+/captures
+.externalNativeBuild
+.cxx
+*.apk
+*.aab
