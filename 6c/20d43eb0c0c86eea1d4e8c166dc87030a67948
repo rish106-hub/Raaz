@@ -1,0 +1,19 @@
+app/proguard-rules.pro
+  s_178a905c0b0d55::t_d414d8d6b39092 1-59
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "6c20d43eb0c0c86eea1d4e8c166dc87030a67948",
+  "prompts": {},
+  "sessions": {
+    "s_178a905c0b0d55": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a3e5487f-ad91-4580-9fb9-0bfb002e88b3",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "RISHAV DEWAN <rishavdewan10@gmail.com>"
+    }
+  }
+}
