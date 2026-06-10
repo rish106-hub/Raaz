@@ -6,7 +6,10 @@ import androidx.lifecycle.viewModelScope
 import android.app.Application
 import com.raaz.app.data.models.ChatMessage
 import com.raaz.app.data.repository.ChatRepository
+import com.raaz.app.data.repository.TypingState
 import com.raaz.app.data.websocket.WebSocketClient
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -29,14 +32,20 @@ class ChatViewModel(
     private val _messages = MutableStateFlow<List<ChatMessage>>(emptyList())
     val messages: StateFlow<List<ChatMessage>> = _messages.asStateFlow()
 
+    private val _partnerTyping = MutableStateFlow(false)
+    val partnerTyping: StateFlow<Boolean> = _partnerTyping.asStateFlow()
+
     private val _isTyping = MutableStateFlow(false)
     val isTyping: StateFlow<Boolean> = _isTyping.asStateFlow()
 
     private var countDownTimer: CountDownTimer? = null
+    private var typingDebounceJob: Job? = null
+    private var typingStopJob: Job? = null
 
     init {
         startTimer()
         subscribeToMessages()
+        subscribeToTyping()
     }
 
     private fun subscribeToMessages() {
@@ -44,6 +53,16 @@ class ChatViewModel(
             viewModelScope.launch {
                 chatRepository.getMessages().collect { message ->
                     _messages.value = _messages.value + message
+                }
+            }
+        }
+    }
+
+    private fun subscribeToTyping() {
+        if (chatRepository != null) {
+            viewModelScope.launch {
+                chatRepository.getTypingState().collect { state ->
+                    _partnerTyping.value = state.isTyping
                 }
             }
         }
@@ -64,6 +83,30 @@ class ChatViewModel(
 
     fun onInputChange(text: String) {
         _inputText.value = text
+
+        typingStopJob?.cancel()
+        typingDebounceJob?.cancel()
+
+        if (text.isNotEmpty() && !_isTyping.value) {
+            typingDebounceJob = viewModelScope.launch {
+                delay(300)
+                _isTyping.value = true
+                chatRepository?.sendTyping(true)
+            }
+        }
+
+        if (text.isEmpty() && _isTyping.value) {
+            _isTyping.value = false
+            chatRepository?.sendTyping(false)
+        } else if (text.isNotEmpty()) {
+            typingStopJob = viewModelScope.launch {
+                delay(1000)
+                if (_inputText.value.isNotEmpty()) {
+                    _isTyping.value = false
+                    chatRepository?.sendTyping(false)
+                }
+            }
+        }
     }
 
     fun sendMessage() {
@@ -90,6 +133,8 @@ class ChatViewModel(
 
     override fun onCleared() {
         countDownTimer?.cancel()
+        typingDebounceJob?.cancel()
+        typingStopJob?.cancel()
         chatRepository?.disconnect()
         super.onCleared()
     }

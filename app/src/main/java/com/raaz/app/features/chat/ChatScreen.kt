@@ -52,6 +52,7 @@ fun ChatScreen(
     val sessionAlias by viewModel.sessionAlias.collectAsState()
     val messages by viewModel.messages.collectAsState()
     val isTyping by viewModel.isTyping.collectAsState()
+    val partnerTyping by viewModel.partnerTyping.collectAsState()
 
     Column(
         modifier = Modifier
@@ -82,8 +83,8 @@ fun ChatScreen(
                         fontWeight = FontWeight.SemiBold
                     )
                     Text(
-                        text = prompt,
-                        color = Color.White.copy(alpha = 0.35f),
+                        text = if (partnerTyping) "typing..." else prompt,
+                        color = if (partnerTyping) RaazAccent else Color.White.copy(alpha = 0.35f),
                         fontSize = 11.sp,
                         maxLines = 1
                     )
