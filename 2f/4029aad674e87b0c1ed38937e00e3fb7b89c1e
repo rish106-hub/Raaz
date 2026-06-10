@@ -1,0 +1,24 @@
+app/src/main/java/com/raaz/app/data/OnboardingDataStore.kt
+  s_178a905c0b0d55::t_e2bb222c091d9a 13
+  s_178a905c0b0d55::t_0015646f430715 11
+  s_178a905c0b0d55::t_009dd583c4e51e 41-49,53,71-74,76
+  s_178a905c0b0d55::t_ca4590f43a9092 60,64,69
+  s_178a905c0b0d55::t_2dfdc68b2e4136 22-23
+  s_178a905c0b0d55::t_cfd09fe4037b6d 50-52,54-59,61-63,65-68,70,75
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "2f4029aad674e87b0c1ed38937e00e3fb7b89c1e",
+  "prompts": {},
+  "sessions": {
+    "s_178a905c0b0d55": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a3e5487f-ad91-4580-9fb9-0bfb002e88b3",
+        "model": "claude-haiku-4-5-20251001"
+      },
+      "human_author": "RISHAV DEWAN <rishavdewan10@gmail.com>"
+    }
+  }
+}
