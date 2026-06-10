@@ -1,6 +1,5 @@
 package com.raaz.app.features.chat
 
-import android.os.CountDownTimer
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import android.app.Application
@@ -11,7 +10,6 @@ import com.raaz.app.data.repository.ExtensionResponse
 import com.raaz.app.data.repository.HandleExchangeState
 import com.raaz.app.data.repository.HandleReveal
 import com.raaz.app.data.repository.TypingState
-import com.raaz.app.data.websocket.WebSocketClient
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -54,10 +52,10 @@ class ChatViewModel(
     private val _partnerHandle = MutableStateFlow<String?>(null)
     val partnerHandle: StateFlow<String?> = _partnerHandle.asStateFlow()
 
-    private var countDownTimer: CountDownTimer? = null
+    private var timerJob: Job? = null
+    private var remainingMs: Long = 20 * 60 * 1000L
     private var typingDebounceJob: Job? = null
     private var typingStopJob: Job? = null
-    private var timerMs: Long = 20 * 60 * 1000L
     private val userHandle: String = "Raaz/${(10000..99999).random()}"
 
     init {
@@ -98,7 +96,7 @@ class ChatViewModel(
             viewModelScope.launch {
                 chatRepository.getExtensionResponses().collect { response ->
                     if (response.approved) {
-                        timerMs += 600 * 1000
+                        startTimer(remainingMs + 600_000L)
                     }
                     _extensionRequest.value = null
                 }
@@ -121,17 +119,19 @@ class ChatViewModel(
         }
     }
 
-    private fun startTimer() {
-        countDownTimer = object : CountDownTimer(20 * 60 * 1000L, 1000) {
-            override fun onTick(millisUntilFinished: Long) {
-                val minutes = millisUntilFinished / 60000
-                val seconds = (millisUntilFinished % 60000) / 1000
+    private fun startTimer(fromMs: Long = remainingMs) {
+        timerJob?.cancel()
+        remainingMs = fromMs
+        timerJob = viewModelScope.launch {
+            while (remainingMs > 0) {
+                delay(1000)
+                remainingMs -= 1000
+                val minutes = remainingMs / 60000
+                val seconds = (remainingMs % 60000) / 1000
                 _timerText.value = "%02d:%02d".format(minutes, seconds)
             }
-            override fun onFinish() {
-                _timerText.value = "00:00"
-            }
-        }.start()
+            _timerText.value = "00:00"
+        }
     }
 
     fun onInputChange(text: String) {
@@ -196,14 +196,8 @@ class ChatViewModel(
         return if (_userApprovedHandle.value && _partnerHandle.value != null) userHandle else null
     }
 
-    private fun formatTime(milliseconds: Long): String {
-        val minutes = milliseconds / 60000
-        val seconds = (milliseconds % 60000) / 1000
-        return "%02d:%02d".format(minutes, seconds)
-    }
-
     override fun onCleared() {
-        countDownTimer?.cancel()
+        timerJob?.cancel()
         typingDebounceJob?.cancel()
         typingStopJob?.cancel()
         chatRepository?.disconnect()
