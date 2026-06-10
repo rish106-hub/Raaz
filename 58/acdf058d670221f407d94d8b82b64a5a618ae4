@@ -1,0 +1,19 @@
+README.md
+  s_4d514729322491::t_0a4011a2951428 2-191
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "58acdf058d670221f407d94d8b82b64a5a618ae4",
+  "prompts": {},
+  "sessions": {
+    "s_4d514729322491": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0f74ccf6-a41a-4bc0-b7c3-837b285e5b6b",
+        "model": "claude-haiku-4-5-20251001"
+      },
+      "human_author": "RISHAV DEWAN <rishavdewan10@gmail.com>"
+    }
+  }
+}
