@@ -1,0 +1,28 @@
+app/src/main/java/com/raaz/app/features/home/HomeScreen.kt
+  s_178a905c0b0d55::t_13c6301810acd9 124
+  s_178a905c0b0d55::t_9f95e096cf0578 134
+gradle/libs.versions.toml
+  s_178a905c0b0d55::t_0faf6ae797a02b 4,15-17,36-40,46
+app/build.gradle.kts
+  s_178a905c0b0d55::t_9dd9fefe9b0172 5,22,51-55
+app/src/main/java/com/raaz/app/data/websocket/ConnectionState.kt
+  s_178a905c0b0d55::t_4b31e032a5323f 1-7
+app/src/main/java/com/raaz/app/data/websocket/WebSocketClient.kt
+  s_178a905c0b0d55::t_c5dcf693c8a0b8 4,12-13,15,36-38,56,71-75,82,88,109,129-173,183,185,187,189,191,193-198
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "c370c60daab72b51f792cc2e7c1798c6e5c588a7",
+  "prompts": {},
+  "sessions": {
+    "s_178a905c0b0d55": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a3e5487f-ad91-4580-9fb9-0bfb002e88b3",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "RISHAV DEWAN <rishavdewan10@gmail.com>"
+    }
+  }
+}
