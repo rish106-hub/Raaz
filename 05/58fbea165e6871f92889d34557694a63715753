@@ -1,0 +1,29 @@
+app/src/main/java/com/raaz/app/features/chat/ChatScreen.kt
+  s_178a905c0b0d55::t_ef6a29b977eddc 167-168,173-174,177-180
+  s_178a905c0b0d55::t_bb823be7853aa4 279-351
+  s_178a905c0b0d55::t_f5778cff549d7d 58-61
+app/src/main/java/com/raaz/app/features/chat/ChatViewModel.kt
+  s_178a905c0b0d55::t_30de349743ae11 11-12
+  s_178a905c0b0d55::t_80ea5715d1f7fb 109-123
+  s_178a905c0b0d55::t_6cc7004888e110 182-198
+  s_178a905c0b0d55::t_27286b1b00d144 48-56,61,68
+app/src/main/java/com/raaz/app/data/repository/ChatRepository.kt
+  s_178a905c0b0d55::t_89b68d3e5f48c9 122-150
+  s_178a905c0b0d55::t_9cb16ba05db96d 26-35
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "0558fbea165e6871f92889d34557694a63715753",
+  "prompts": {},
+  "sessions": {
+    "s_178a905c0b0d55": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a3e5487f-ad91-4580-9fb9-0bfb002e88b3",
+        "model": "claude-haiku-4-5-20251001"
+      },
+      "human_author": "RISHAV DEWAN <rishavdewan10@gmail.com>"
+    }
+  }
+}
