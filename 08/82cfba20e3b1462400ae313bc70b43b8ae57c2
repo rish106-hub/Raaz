@@ -1,0 +1,27 @@
+app/src/main/java/com/raaz/app/features/vault/VaultViewModel.kt
+  s_178a905c0b0d55::t_1fd39e6f465052 1-29
+app/src/main/java/com/raaz/app/navigation/Screen.kt
+  s_178a905c0b0d55::t_ad602c602ab816 11
+app/src/main/java/com/raaz/app/navigation/NavGraph.kt
+  s_178a905c0b0d55::t_49665c868539b0 13,34-36,50-51
+app/src/main/java/com/raaz/app/features/home/HomeScreen.kt
+  s_178a905c0b0d55::t_2748040d638ee7 5,43,69-72,75,77-79,81-98,101-136
+app/src/main/java/com/raaz/app/features/vault/VaultScreen.kt
+  s_178a905c0b0d55::t_06580fe0c97a6a 1-178
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "0882cfba20e3b1462400ae313bc70b43b8ae57c2",
+  "prompts": {},
+  "sessions": {
+    "s_178a905c0b0d55": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a3e5487f-ad91-4580-9fb9-0bfb002e88b3",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "RISHAV DEWAN <rishavdewan10@gmail.com>"
+    }
+  }
+}
