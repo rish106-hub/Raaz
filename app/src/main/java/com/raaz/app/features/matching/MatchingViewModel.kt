@@ -66,7 +66,7 @@ class MatchingViewModel(
         )
     }
 
-    private fun canRequestMatch(request: MatchRequest): Boolean {
+    fun canRequestMatch(request: MatchRequest): Boolean {
         return request.promptId.isNotEmpty() &&
                 request.ageBucket.isNotEmpty() &&
                 request.city.isNotEmpty() &&
