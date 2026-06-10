@@ -46,6 +46,15 @@ object OnboardingDataStore {
             Pair(sessionId, sessionAlias)
         }
 
+    fun getAgeBracket(context: Context): Flow<String> =
+        context.dataStore.data.map { it[KEY_AGE_BRACKET] ?: "" }
+
+    fun getCity(context: Context): Flow<String> =
+        context.dataStore.data.map { it[KEY_CITY] ?: "" }
+
+    fun getCategory(context: Context): Flow<String> =
+        context.dataStore.data.map { it[KEY_CATEGORY] ?: "" }
+
     suspend fun generateAndSaveAnonymousAuth(context: Context): Pair<String, String> {
         val currentData = context.dataStore.data.map { prefs ->
             Pair(prefs[KEY_SESSION_ID] ?: "", prefs[KEY_SESSION_ALIAS] ?: "")
