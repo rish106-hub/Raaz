@@ -3,6 +3,7 @@ package com.raaz.app.features.home
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -16,13 +17,18 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.raaz.app.data.repository.AuthRepositoryImpl
+import com.raaz.app.features.matching.MatchingOverlay
+import com.raaz.app.features.matching.MatchingViewModel
 import com.raaz.app.features.onboarding.RaazButton
 import com.raaz.app.ui.theme.RaazAccent
 import com.raaz.app.ui.theme.RaazBackground
@@ -34,18 +40,31 @@ import java.util.Locale
 @Composable
 fun HomeScreen(
     onEcho: (String) -> Unit,
-    viewModel: HomeViewModel = viewModel()
+    viewModel: HomeViewModel = viewModel(),
+    matchingViewModel: MatchingViewModel? = null
 ) {
-    val prompt by viewModel.todayPrompt.collectAsState()
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val application = context.applicationContext as android.app.Application
+    val authRepository = remember { AuthRepositoryImpl(context) }
+    val actualMatchingViewModel = matchingViewModel ?: viewModel {
+        MatchingViewModel(authRepository, application)
+    }
 
-    Column(
+    val prompt by viewModel.todayPrompt.collectAsState()
+    val matchingState by actualMatchingViewModel.matchingState.collectAsState()
+
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .background(RaazBackground)
-            .systemBarsPadding()
-            .padding(24.dp),
-        verticalArrangement = Arrangement.SpaceBetween
     ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .systemBarsPadding()
+                .padding(24.dp),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -100,7 +119,13 @@ fun HomeScreen(
                 lineHeight = 20.sp
             )
             Spacer(modifier = Modifier.height(12.dp))
-            RaazButton(text = "Echo", onClick = { onEcho(prompt) })
+            RaazButton(text = "Echo", onClick = { actualMatchingViewModel.startMatching(prompt) })
         }
+        }
+
+        MatchingOverlay(
+            state = matchingState,
+            onCancel = { actualMatchingViewModel.cancelMatching() }
+        )
     }
 }
