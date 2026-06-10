@@ -8,11 +8,10 @@ import com.raaz.app.data.models.MatchRequest
 import com.raaz.app.data.repository.AuthRepository
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
 
@@ -42,21 +41,10 @@ class MatchingViewModel(
 
     private suspend fun buildMatchRequest(promptId: String): MatchRequest {
         val context = getApplication<Application>()
-        var ageBucket = ""
-        var city = ""
-        var anonymousId = ""
 
-        OnboardingDataStore.getAnonymousAuth(context).collect { (sessionId, _) ->
-            anonymousId = sessionId
-        }
-
-        OnboardingDataStore.getAgeBracket(context).collect { bracket ->
-            ageBucket = bracket
-        }
-
-        OnboardingDataStore.getCity(context).collect { c ->
-            city = c
-        }
+        val anonymousId = OnboardingDataStore.getAnonymousAuth(context).first().first
+        val ageBucket = OnboardingDataStore.getAgeBracket(context).first()
+        val city = OnboardingDataStore.getCity(context).first()
 
         return MatchRequest(
             promptId = promptId,

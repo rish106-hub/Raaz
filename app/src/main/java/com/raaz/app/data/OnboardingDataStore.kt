@@ -8,7 +8,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import java.util.UUID
 
@@ -56,16 +56,12 @@ object OnboardingDataStore {
         context.dataStore.data.map { it[KEY_CATEGORY] ?: "" }
 
     suspend fun generateAndSaveAnonymousAuth(context: Context): Pair<String, String> {
-        val currentData = context.dataStore.data.map { prefs ->
+        val (sessionIdStored, sessionAliasStored) = context.dataStore.data.map { prefs ->
             Pair(prefs[KEY_SESSION_ID] ?: "", prefs[KEY_SESSION_ALIAS] ?: "")
-        }
+        }.first()
 
-        var sessionId: String = ""
-        var sessionAlias: String = ""
-        currentData.collect { (id, alias) ->
-            sessionId = id
-            sessionAlias = alias
-        }
+        var sessionId = sessionIdStored
+        var sessionAlias = sessionAliasStored
 
         if (sessionId.isEmpty()) {
             sessionId = UUID.randomUUID().toString()
