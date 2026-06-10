@@ -1,25 +1,52 @@
 package com.raaz.app.features.chat
 
 import android.os.CountDownTimer
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import android.app.Application
+import com.raaz.app.data.models.ChatMessage
+import com.raaz.app.data.repository.ChatRepository
+import com.raaz.app.data.websocket.WebSocketClient
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 
-class ChatViewModel : ViewModel() {
+class ChatViewModel(
+    application: Application,
+    private val chatRepository: ChatRepository? = null,
+    private val currentUserAlias: String = "Raaz #${(1000..9999).random()}"
+) : AndroidViewModel(application) {
     private val _timerText = MutableStateFlow("20:00")
     val timerText: StateFlow<String> = _timerText.asStateFlow()
 
     private val _inputText = MutableStateFlow("")
     val inputText: StateFlow<String> = _inputText.asStateFlow()
 
-    private val _sessionAlias = MutableStateFlow("Raaz #${(1000..9999).random()}")
+    private val _sessionAlias = MutableStateFlow(currentUserAlias)
     val sessionAlias: StateFlow<String> = _sessionAlias.asStateFlow()
+
+    private val _messages = MutableStateFlow<List<ChatMessage>>(emptyList())
+    val messages: StateFlow<List<ChatMessage>> = _messages.asStateFlow()
+
+    private val _isTyping = MutableStateFlow(false)
+    val isTyping: StateFlow<Boolean> = _isTyping.asStateFlow()
 
     private var countDownTimer: CountDownTimer? = null
 
     init {
         startTimer()
+        subscribeToMessages()
+    }
+
+    private fun subscribeToMessages() {
+        if (chatRepository != null) {
+            viewModelScope.launch {
+                chatRepository.getMessages().collect { message ->
+                    _messages.value = _messages.value + message
+                }
+            }
+        }
     }
 
     private fun startTimer() {
@@ -40,11 +67,30 @@ class ChatViewModel : ViewModel() {
     }
 
     fun sendMessage() {
-        _inputText.value = ""
+        val text = _inputText.value.trim()
+        if (text.isNotEmpty() && chatRepository != null) {
+            chatRepository.sendMessage(text)
+            _inputText.value = ""
+        }
+    }
+
+    fun extendSession(additionalSeconds: Long) {
+        val currentTimeMs = _timerText.value.split(":").let { (m, s) ->
+            (m.toLongOrNull() ?: 0) * 60000 + (s.toLongOrNull() ?: 0) * 1000
+        }
+        val newTimeMs = currentTimeMs + additionalSeconds * 1000
+        _timerText.value = formatTime(newTimeMs)
+    }
+
+    private fun formatTime(milliseconds: Long): String {
+        val minutes = milliseconds / 60000
+        val seconds = (milliseconds % 60000) / 1000
+        return "%02d:%02d".format(minutes, seconds)
     }
 
     override fun onCleared() {
         countDownTimer?.cancel()
+        chatRepository?.disconnect()
         super.onCleared()
     }
 }

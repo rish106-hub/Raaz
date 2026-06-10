@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -35,6 +36,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.raaz.app.data.models.ChatMessage
 import com.raaz.app.ui.theme.RaazAccent
 import com.raaz.app.ui.theme.RaazBackground
 import com.raaz.app.ui.theme.RaazSurface
@@ -48,6 +50,8 @@ fun ChatScreen(
     val timerText by viewModel.timerText.collectAsState()
     val inputText by viewModel.inputText.collectAsState()
     val sessionAlias by viewModel.sessionAlias.collectAsState()
+    val messages by viewModel.messages.collectAsState()
+    val isTyping by viewModel.isTyping.collectAsState()
 
     Column(
         modifier = Modifier
@@ -96,18 +100,39 @@ fun ChatScreen(
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
-            contentPadding = PaddingValues(vertical = 32.dp)
+            contentPadding = PaddingValues(vertical = 32.dp),
+            reverseLayout = false
         ) {
-            item {
-                Box(
-                    modifier = Modifier.fillMaxWidth(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "Conversation begins. Be honest.",
-                        color = Color.White.copy(alpha = 0.2f),
-                        fontSize = 12.sp
-                    )
+            if (messages.isEmpty()) {
+                item {
+                    Box(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Conversation begins. Be honest.",
+                            color = Color.White.copy(alpha = 0.2f),
+                            fontSize = 12.sp
+                        )
+                    }
+                }
+            } else {
+                items(messages) { message ->
+                    MessageBubble(message = message)
+                }
+            }
+            if (isTyping) {
+                item {
+                    Box(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentAlignment = Alignment.CenterStart
+                    ) {
+                        Text(
+                            text = "typing...",
+                            color = Color.White.copy(alpha = 0.4f),
+                            fontSize = 12.sp
+                        )
+                    }
                 }
             }
         }
@@ -187,6 +212,44 @@ fun ChatScreen(
                     color = Color.Black,
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun MessageBubble(
+    message: ChatMessage,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        horizontalAlignment = if (message.isOwnMessage) Alignment.End else Alignment.Start
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(0.8f)
+                .background(
+                    if (message.isOwnMessage) RaazAccent.copy(alpha = 0.2f) else RaazSurface,
+                    RoundedCornerShape(12.dp)
+                )
+                .padding(12.dp)
+        ) {
+            Column {
+                if (!message.isOwnMessage) {
+                    Text(
+                        text = message.senderAlias,
+                        color = RaazAccent,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+                Text(
+                    text = message.text,
+                    color = Color.White,
+                    fontSize = 14.sp,
+                    lineHeight = 20.sp
                 )
             }
         }
