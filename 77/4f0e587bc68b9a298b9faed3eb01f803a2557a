@@ -1,0 +1,21 @@
+app/src/main/java/com/raaz/app/ui/theme/Theme.kt
+  s_4d514729322491::t_c7ad9ce7606f0a 1-28
+app/src/main/java/com/raaz/app/ui/theme/Type.kt
+  s_4d514729322491::t_2ac32faa0593fb 1-42
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "774f0e587bc68b9a298b9faed3eb01f803a2557a",
+  "prompts": {},
+  "sessions": {
+    "s_4d514729322491": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0f74ccf6-a41a-4bc0-b7c3-837b285e5b6b",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "RISHAV DEWAN <rishavdewan10@gmail.com>"
+    }
+  }
+}
