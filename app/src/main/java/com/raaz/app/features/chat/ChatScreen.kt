@@ -55,6 +55,10 @@ fun ChatScreen(
     val isTyping by viewModel.isTyping.collectAsState()
     val partnerTyping by viewModel.partnerTyping.collectAsState()
     val extensionRequest by viewModel.extensionRequest.collectAsState()
+    val partnerHandleExchange by viewModel.partnerHandleExchange.collectAsState()
+    val userApprovedHandle by viewModel.userApprovedHandle.collectAsState()
+    val partnerHandle by viewModel.partnerHandle.collectAsState()
+    val userHandle = viewModel.getVisibleUserHandle()
 
     Column(
         modifier = Modifier
@@ -160,16 +164,20 @@ fun ChatScreen(
                 Text(text = if (extensionRequest != null) "Pending..." else "+10 min", fontSize = 12.sp)
             }
             OutlinedButton(
-                onClick = {},
-                enabled = false,
+                onClick = { viewModel.initiateHandleExchange("partner-id") },
+                enabled = !userApprovedHandle,
                 modifier = Modifier.weight(1f),
                 shape = RoundedCornerShape(8.dp),
                 border = BorderStroke(1.dp, Color.White.copy(alpha = 0.08f)),
                 colors = ButtonDefaults.outlinedButtonColors(
-                    disabledContentColor = Color.White.copy(alpha = 0.25f)
+                    disabledContentColor = Color.White.copy(alpha = 0.25f),
+                    contentColor = Color.White
                 )
             ) {
-                Text(text = "Exchange Handle", fontSize = 12.sp)
+                Text(
+                    text = if (userApprovedHandle) "Waiting..." else "Exchange Handle",
+                    fontSize = 12.sp
+                )
             }
         }
 
@@ -264,6 +272,79 @@ fun ChatScreen(
                     ) {
                         Text(text = "Approve", fontSize = 12.sp)
                     }
+                }
+            }
+        }
+    }
+
+    if (partnerHandleExchange != null) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.5f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth(0.8f)
+                    .background(RaazSurface, RoundedCornerShape(12.dp))
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "${partnerHandleExchange!!.userAlias} wants to exchange contact handles",
+                    color = Color.White,
+                    fontSize = 14.sp,
+                    lineHeight = 20.sp
+                )
+                Spacer(modifier = Modifier.padding(16.dp))
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    OutlinedButton(
+                        onClick = { viewModel.respondToHandleExchange(false) },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.3f)),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
+                    ) {
+                        Text(text = "Decline", fontSize = 12.sp)
+                    }
+                    OutlinedButton(
+                        onClick = { viewModel.respondToHandleExchange(true) },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(1.dp, RaazAccent),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = RaazAccent)
+                    ) {
+                        Text(text = "Approve", fontSize = 12.sp)
+                    }
+                }
+            }
+        }
+    }
+
+    if (userHandle != null && partnerHandle != null) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(RaazAccent.copy(alpha = 0.1f))
+                .padding(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(text = "Handles Exchanged", color = RaazAccent, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                modifier = Modifier.padding(top = 8.dp)
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(text = "You", color = Color.White.copy(alpha = 0.6f), fontSize = 10.sp)
+                    Text(text = userHandle!!, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                }
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(text = "Partner", color = Color.White.copy(alpha = 0.6f), fontSize = 10.sp)
+                    Text(text = partnerHandle!!, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                 }
             }
         }

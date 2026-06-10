@@ -23,6 +23,16 @@ data class ExtensionResponse(
     val responderAlias: String
 )
 
+data class HandleExchangeState(
+    val userId: String,
+    val userAlias: String,
+    val approved: Boolean
+)
+
+data class HandleReveal(
+    val partnerHandle: String
+)
+
 class ChatRepository(
     private val webSocketClient: WebSocketClient,
     private val currentUserAlias: String
@@ -105,6 +115,35 @@ class ChatRepository(
         val event = WebSocketEvent.ExtensionResponse(
             approved = approved,
             responderAlias = currentUserAlias
+        )
+        webSocketClient.send(event)
+    }
+
+    fun getHandleExchangeEvents(): Flow<HandleExchangeState> {
+        return webSocketClient.events
+            .filterIsInstance<WebSocketEvent.HandleExchange>()
+            .map { event ->
+                HandleExchangeState(
+                    userId = event.userId,
+                    userAlias = event.userAlias,
+                    approved = event.approved
+                )
+            }
+    }
+
+    fun getHandleReveals(): Flow<HandleReveal> {
+        return webSocketClient.events
+            .filterIsInstance<WebSocketEvent.HandleRevealed>()
+            .map { event ->
+                HandleReveal(partnerHandle = event.partnerHandle)
+            }
+    }
+
+    fun sendHandleExchange(approved: Boolean, userId: String) {
+        val event = WebSocketEvent.HandleExchange(
+            userId = userId,
+            userAlias = currentUserAlias,
+            approved = approved
         )
         webSocketClient.send(event)
     }

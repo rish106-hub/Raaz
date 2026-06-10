@@ -8,6 +8,8 @@ import com.raaz.app.data.models.ChatMessage
 import com.raaz.app.data.repository.ChatRepository
 import com.raaz.app.data.repository.ExtensionRequest
 import com.raaz.app.data.repository.ExtensionResponse
+import com.raaz.app.data.repository.HandleExchangeState
+import com.raaz.app.data.repository.HandleReveal
 import com.raaz.app.data.repository.TypingState
 import com.raaz.app.data.websocket.WebSocketClient
 import kotlinx.coroutines.Job
@@ -43,16 +45,27 @@ class ChatViewModel(
     private val _extensionRequest = MutableStateFlow<ExtensionRequest?>(null)
     val extensionRequest: StateFlow<ExtensionRequest?> = _extensionRequest.asStateFlow()
 
+    private val _partnerHandleExchange = MutableStateFlow<HandleExchangeState?>(null)
+    val partnerHandleExchange: StateFlow<HandleExchangeState?> = _partnerHandleExchange.asStateFlow()
+
+    private val _userApprovedHandle = MutableStateFlow(false)
+    val userApprovedHandle: StateFlow<Boolean> = _userApprovedHandle.asStateFlow()
+
+    private val _partnerHandle = MutableStateFlow<String?>(null)
+    val partnerHandle: StateFlow<String?> = _partnerHandle.asStateFlow()
+
     private var countDownTimer: CountDownTimer? = null
     private var typingDebounceJob: Job? = null
     private var typingStopJob: Job? = null
     private var timerMs: Long = 20 * 60 * 1000L
+    private val userHandle: String = "Raaz/${(10000..99999).random()}"
 
     init {
         startTimer()
         subscribeToMessages()
         subscribeToTyping()
         subscribeToExtensionEvents()
+        subscribeToHandleExchange()
     }
 
     private fun subscribeToMessages() {
@@ -88,6 +101,21 @@ class ChatViewModel(
                         timerMs += 600 * 1000
                     }
                     _extensionRequest.value = null
+                }
+            }
+        }
+    }
+
+    private fun subscribeToHandleExchange() {
+        if (chatRepository != null) {
+            viewModelScope.launch {
+                chatRepository.getHandleExchangeEvents().collect { exchange ->
+                    _partnerHandleExchange.value = exchange
+                }
+            }
+            viewModelScope.launch {
+                chatRepository.getHandleReveals().collect { reveal ->
+                    _partnerHandle.value = reveal.partnerHandle
                 }
             }
         }
@@ -149,6 +177,23 @@ class ChatViewModel(
     fun respondToExtension(approved: Boolean) {
         chatRepository?.sendExtensionResponse(approved)
         _extensionRequest.value = null
+    }
+
+    fun initiateHandleExchange(userId: String) {
+        chatRepository?.sendHandleExchange(true, userId)
+        _userApprovedHandle.value = true
+    }
+
+    fun respondToHandleExchange(approved: Boolean) {
+        chatRepository?.sendHandleExchange(approved, partnerHandleExchange.value?.userId ?: "")
+        if (approved) {
+            _userApprovedHandle.value = true
+        }
+        _partnerHandleExchange.value = null
+    }
+
+    fun getVisibleUserHandle(): String? {
+        return if (_userApprovedHandle.value && _partnerHandle.value != null) userHandle else null
     }
 
     private fun formatTime(milliseconds: Long): String {
