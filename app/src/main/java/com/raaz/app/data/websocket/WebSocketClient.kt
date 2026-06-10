@@ -1,14 +1,21 @@
 package com.raaz.app.data.websocket
 
 import android.util.Log
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import java.util.concurrent.TimeUnit
+import kotlin.math.pow
 
 class WebSocketClient(
     private val url: String,
@@ -22,6 +29,7 @@ class WebSocketClient(
     private val _events = MutableSharedFlow<WebSocketEvent>(replay = 1)
     val events: Flow<WebSocketEvent> = _events.asSharedFlow()
 
+    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var isConnected = false
     private var reconnectAttempts = 0
     private val maxReconnectAttempts = 5
@@ -83,6 +91,7 @@ class WebSocketClient(
 
     fun disconnect() {
         isConnected = false
+        scope.cancel()
         webSocket?.close(1000, "User disconnect")
         webSocket = null
     }
@@ -90,12 +99,12 @@ class WebSocketClient(
     private fun attemptReconnect() {
         if (reconnectAttempts < maxReconnectAttempts) {
             reconnectAttempts++
-            val delay = (1000 * Math.pow(2.0, reconnectAttempts.toDouble())).toLong()
-            Log.d("WebSocket", "Reconnect attempt $reconnectAttempts after ${delay}ms")
-            Thread {
-                Thread.sleep(delay)
+            val delayMs = (1000 * 2.0.pow(reconnectAttempts.toDouble())).toLong()
+            Log.d("WebSocket", "Reconnect attempt $reconnectAttempts after ${delayMs}ms")
+            scope.launch {
+                delay(delayMs)
                 connect()
-            }.start()
+            }
         }
     }
 
