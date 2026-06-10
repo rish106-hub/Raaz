@@ -30,9 +30,11 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -42,11 +44,19 @@ import com.raaz.app.ui.theme.RaazAccent
 import com.raaz.app.ui.theme.RaazBackground
 import com.raaz.app.ui.theme.RaazSurface
 
+private const val WS_URL = "ws://10.0.2.2:8080/ws"
+
 @Composable
 fun ChatScreen(
     prompt: String,
     onBack: () -> Unit,
-    viewModel: ChatViewModel = viewModel()
+    viewModel: ChatViewModel = run {
+        val context = LocalContext.current
+        val application = context.applicationContext as android.app.Application
+        val alias = remember { "Raaz #${(1000..9999).random()}" }
+        val factory = remember { ChatViewModelFactory(application, WS_URL, alias) }
+        viewModel(factory = factory)
+    }
 ) {
     val timerText by viewModel.timerText.collectAsState()
     val inputText by viewModel.inputText.collectAsState()
