@@ -52,6 +52,11 @@ func (a *App) handleWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if globalStrikes.IsBanned(params.AnonymousID) {
+		http.Error(w, "temporarily banned due to repeated violations", http.StatusForbidden)
+		return
+	}
+
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Printf("upgrade error: %v", err)
