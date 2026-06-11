@@ -1,0 +1,50 @@
+server/app.go
+  s_178a905c0b0d55::t_4af69e62c004ba 71
+  s_178a905c0b0d55::t_a1fe35f2f430a5 80
+  s_178a905c0b0d55::t_bd8440ff0be186 7,13
+  s_178a905c0b0d55::t_9e7d1a6adaa92e 155
+  s_178a905c0b0d55::t_250208474c70c7 100
+  s_178a905c0b0d55::t_c881ae768809f7 53-54
+server/main.go
+  s_178a905c0b0d55::t_3b7cca8dcb05a8 5,14-15,24-37,53,59,65,70-71
+server/go.mod
+  s_178a905c0b0d55::t_42b4af72166a25 8
+server/matching.go
+  s_178a905c0b0d55::t_8dbd24c328048d 37,42,45
+  s_178a905c0b0d55::t_838674446614da 4
+  s_178a905c0b0d55::t_db71739ef0f5f8 87
+server/session.go
+  s_178a905c0b0d55::t_fafb426d81d11e 80
+  s_178a905c0b0d55::t_a0682d5787bfe1 111
+  s_178a905c0b0d55::t_6d645bb3d5d5c1 93
+  s_178a905c0b0d55::t_ec1cb3f1f4a822 6
+server/metrics.go
+  s_178a905c0b0d55::t_bc8dbb1ac661a5 1-33
+server/router.go
+  s_178a905c0b0d55::t_d8075a9bd90e9e 38
+  s_178a905c0b0d55::t_461474fcc76d45 56,62,65
+  s_178a905c0b0d55::t_93b0de42d9dc44 5
+  s_178a905c0b0d55::t_19646a765b686d 17
+server/hub.go
+  s_178a905c0b0d55::t_776c87edabb4ed 124-125,135-136
+  s_178a905c0b0d55::t_e45602627dec5f 99
+  s_178a905c0b0d55::t_da700bb0b40674 42
+  s_178a905c0b0d55::t_284b293f8873e0 4
+  s_178a905c0b0d55::t_dfd3c6def62876 92
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "180f152d79f5b7644f27d18339886e95694aeb2d",
+  "prompts": {},
+  "sessions": {
+    "s_178a905c0b0d55": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a3e5487f-ad91-4580-9fb9-0bfb002e88b3",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "RISHAV DEWAN <rishavdewan10@gmail.com>"
+    }
+  }
+}
