@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/raaz/server/store"
 )
 
 const (
@@ -43,8 +44,6 @@ func (c *Client) safeSend(data []byte) {
 }
 
 // writePump is the sole goroutine that writes to the WebSocket connection.
-// It exits when the underlying connection is closed (write returns an error)
-// or when a ping fails.
 func (c *Client) writePump() {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
@@ -69,12 +68,12 @@ func (c *Client) writePump() {
 }
 
 // readPump is the sole goroutine that reads from the WebSocket connection.
-// It writes every inbound message to c.recv for the session relay to consume.
-// On exit it deregisters the client, closes c.recv, and closes the connection.
-func (c *Client) readPump(q *MatchingQueue) {
+// On exit it deregisters the client from the hub and queue, closes c.recv,
+// and closes the connection.
+func (c *Client) readPump(q store.QueueStore) {
 	defer func() {
 		c.hub.Unregister(c)
-		q.Remove(c)
+		q.Remove(c.params.AnonymousID) //nolint:errcheck
 		c.closeRecvOnce.Do(func() { close(c.recv) })
 		c.conn.Close()
 	}()
@@ -94,7 +93,6 @@ func (c *Client) readPump(q *MatchingQueue) {
 			}
 			return
 		}
-		// Non-blocking: if recv is full, drop the message rather than stalling the pump.
 		select {
 		case c.recv <- msg:
 		default:
@@ -103,19 +101,25 @@ func (c *Client) readPump(q *MatchingQueue) {
 	}
 }
 
-// Hub tracks all live connections for clean-up on server shutdown.
+// Hub tracks all live connections. byID enables fast lookup by anonymousID
+// so the matching loop can resolve queued IDs back to live *Client pointers.
 type Hub struct {
 	mu      sync.RWMutex
 	clients map[*Client]struct{}
+	byID    map[string]*Client
 }
 
 func NewHub() *Hub {
-	return &Hub{clients: make(map[*Client]struct{})}
+	return &Hub{
+		clients: make(map[*Client]struct{}),
+		byID:    make(map[string]*Client),
+	}
 }
 
 func (h *Hub) Register(c *Client) {
 	h.mu.Lock()
 	h.clients[c] = struct{}{}
+	h.byID[c.params.AnonymousID] = c
 	h.mu.Unlock()
 	log.Printf("connected: %s", c.params.AnonymousID)
 }
@@ -125,6 +129,14 @@ func (h *Hub) Register(c *Client) {
 func (h *Hub) Unregister(c *Client) {
 	h.mu.Lock()
 	delete(h.clients, c)
+	delete(h.byID, c.params.AnonymousID)
 	h.mu.Unlock()
 	log.Printf("disconnected: %s", c.params.AnonymousID)
+}
+
+// LookupByID returns the live *Client for anonymousID, or nil if not connected.
+func (h *Hub) LookupByID(anonymousID string) *Client {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	return h.byID[anonymousID]
 }

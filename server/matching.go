@@ -2,12 +2,13 @@ package main
 
 import (
 	"log"
-	"sync"
 	"time"
+
+	"github.com/raaz/server/store"
 )
 
-// FallbackDelay is the queue wait time before the national pool fallback
-// (City constraint dropped). 15 s for testing; swap to 15*time.Minute for prod.
+// FallbackDelay is the queue wait time before the City constraint is relaxed
+// and the national pool is used. 15 s default; override in tests.
 var FallbackDelay = 15 * time.Second
 
 const (
@@ -17,116 +18,83 @@ const (
 	matchTickRate = 100 * time.Millisecond
 )
 
-// QueueEntry holds a waiting client alongside its arrival time.
-type QueueEntry struct {
-	client   *Client
-	joinedAt time.Time
-}
-
-// MatchingQueue is a thread-safe pool of unmatched clients.
-type MatchingQueue struct {
-	mu      sync.Mutex
-	entries []*QueueEntry
-}
-
-func NewMatchingQueue() *MatchingQueue {
-	return &MatchingQueue{}
-}
-
-// Enqueue appends a newly connected client to the waiting pool.
-func (q *MatchingQueue) Enqueue(c *Client) {
-	q.mu.Lock()
-	q.entries = append(q.entries, &QueueEntry{client: c, joinedAt: time.Now()})
-	depth := len(q.entries)
-	q.mu.Unlock()
-	log.Printf("queued %s (prompt=%s age=%s city=%s) depth=%d",
-		c.params.AnonymousID, c.params.PromptID, c.params.AgeBucket, c.params.City, depth)
-}
-
-// Remove deletes a client from the queue. No-op if already absent.
-func (q *MatchingQueue) Remove(c *Client) {
-	q.mu.Lock()
-	defer q.mu.Unlock()
-	for i, e := range q.entries {
-		if e.client == c {
-			q.entries = append(q.entries[:i], q.entries[i+1:]...)
-			return
-		}
-	}
-}
-
-// RunMatchingLoop ticks every matchTickRate and attempts to pair waiting clients.
-// Run in a dedicated goroutine via App.Start().
-func (q *MatchingQueue) RunMatchingLoop() {
+func (a *App) runMatchingLoop() {
 	ticker := time.NewTicker(matchTickRate)
 	defer ticker.Stop()
 	for range ticker.C {
-		q.tryMatch()
+		a.tryMatch()
 	}
 }
 
-type matchedPair struct{ a, b *Client }
+type matchedPair struct{ a, b store.WaitingEntry }
 
-// tryMatch scans the queue once and pairs as many compatible clients as possible.
-// Matched clients are removed from the queue before releasing the lock.
-func (q *MatchingQueue) tryMatch() {
-	q.mu.Lock()
-	if len(q.entries) < 2 {
-		q.mu.Unlock()
+// tryMatch snapshots the queue, pairs compatible clients, and starts sessions
+// for each pair. Clients that disconnected between snapshot and match are skipped.
+func (a *App) tryMatch() {
+	now := time.Now()
+
+	if err := a.queue.MigrateToFallback(now.Add(-FallbackDelay)); err != nil {
+		log.Printf("migrateToFallback: %v", err)
+	}
+
+	entries, err := a.queue.Snapshot()
+	if err != nil {
+		log.Printf("queue snapshot: %v", err)
+		return
+	}
+	if len(entries) < 2 {
 		return
 	}
 
-	now := time.Now()
-	usedIdx := make(map[int]bool, len(q.entries))
+	usedIDs := make(map[string]bool)
 	var pairs []matchedPair
 
-	for i := 0; i < len(q.entries); i++ {
-		if usedIdx[i] {
+	for i := 0; i < len(entries); i++ {
+		if usedIDs[entries[i].AnonymousID] {
 			continue
 		}
-		a := q.entries[i]
-		aFallback := now.Sub(a.joinedAt) >= FallbackDelay
+		ea := entries[i]
+		aFallback := now.Sub(ea.JoinedAt) >= FallbackDelay
 
-		for j := i + 1; j < len(q.entries); j++ {
-			if usedIdx[j] {
+		for j := i + 1; j < len(entries); j++ {
+			if usedIDs[entries[j].AnonymousID] {
 				continue
 			}
-			b := q.entries[j]
-			bFallback := now.Sub(b.joinedAt) >= FallbackDelay
+			eb := entries[j]
+			bFallback := now.Sub(eb.JoinedAt) >= FallbackDelay
 
-			if compatible(a, b, aFallback || bFallback) {
-				usedIdx[i] = true
-				usedIdx[j] = true
-				pairs = append(pairs, matchedPair{a.client, b.client})
+			if compatibleEntries(ea, eb, aFallback || bFallback) {
+				usedIDs[ea.AnonymousID] = true
+				usedIDs[eb.AnonymousID] = true
+				pairs = append(pairs, matchedPair{ea, eb})
 				break
 			}
 		}
 	}
 
-	// Rebuild the queue keeping only unmatched entries.
-	remaining := q.entries[:0]
-	for i, e := range q.entries {
-		if !usedIdx[i] {
-			remaining = append(remaining, e)
-		}
-	}
-	q.entries = remaining
-	q.mu.Unlock()
-
 	for _, p := range pairs {
-		go createSession(p.a, p.b)
+		aClient := a.hub.LookupByID(p.a.AnonymousID)
+		bClient := a.hub.LookupByID(p.b.AnonymousID)
+		if aClient == nil || bClient == nil {
+			// Client disconnected between snapshot and match; clean up.
+			a.queue.Remove(p.a.AnonymousID) //nolint:errcheck
+			a.queue.Remove(p.b.AnonymousID) //nolint:errcheck
+			continue
+		}
+		a.queue.Remove(p.a.AnonymousID) //nolint:errcheck
+		a.queue.Remove(p.b.AnonymousID) //nolint:errcheck
+		go createSession(aClient, bClient, a.sessions)
 	}
 }
 
-// compatible returns true when a and b should be matched.
-// When nationalFallback is true (either client exceeded FallbackDelay),
-// the City constraint is relaxed to allow national pool matching.
-func compatible(a, b *QueueEntry, nationalFallback bool) bool {
-	pa, pb := a.client.params, b.client.params
-	if pa.PromptID != pb.PromptID || pa.AgeBucket != pb.AgeBucket {
+// compatibleEntries returns true when a and b should be matched.
+// nationalFallback is true when either client has exceeded FallbackDelay,
+// relaxing the City constraint.
+func compatibleEntries(a, b store.WaitingEntry, nationalFallback bool) bool {
+	if a.PromptID != b.PromptID || a.AgeBucket != b.AgeBucket {
 		return false
 	}
-	if !nationalFallback && pa.City != pb.City {
+	if !nationalFallback && a.City != b.City {
 		return false
 	}
 	return true
