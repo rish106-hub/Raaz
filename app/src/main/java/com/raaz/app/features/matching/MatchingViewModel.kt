@@ -3,6 +3,7 @@ package com.raaz.app.features.matching
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.raaz.app.analytics.RaazAnalytics
 import com.raaz.app.data.OnboardingDataStore
 import com.raaz.app.data.models.MatchRequest
 import com.raaz.app.data.repository.AuthRepository
@@ -35,6 +36,7 @@ class MatchingViewModel(
             }
 
             _matchingState.value = MatchingState.InQueue(0)
+            RaazAnalytics.matchInitiated()
             startTimer()
         }
     }

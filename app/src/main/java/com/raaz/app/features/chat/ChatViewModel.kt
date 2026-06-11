@@ -3,6 +3,7 @@ package com.raaz.app.features.chat
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.raaz.app.analytics.RaazAnalytics
 import com.raaz.app.data.models.ChatMessage
 import com.raaz.app.data.repository.ChatRepository
 import com.raaz.app.data.repository.CrisisTriggerData
@@ -101,6 +102,7 @@ class ChatViewModel(
         subscribeToExtensionEvents()
         subscribeToHandleExchange()
         subscribeToCrisisAndModeration()
+        subscribeToConnectionForAnalytics()
     }
 
     private fun recordSession() {
@@ -169,6 +171,7 @@ class ChatViewModel(
                 chatRepository.getExtensionResponses().collect { response ->
                     if (response.approved) {
                         startTimer(remainingMs + 600_000L)
+                        RaazAnalytics.sessionExtended()
                     }
                     _extensionRequest.value = null
                 }
@@ -186,6 +189,7 @@ class ChatViewModel(
             viewModelScope.launch {
                 chatRepository.getHandleReveals().collect { reveal ->
                     _partnerHandle.value = reveal.partnerHandle
+                    RaazAnalytics.handleExchanged()
                 }
             }
         }
@@ -201,6 +205,17 @@ class ChatViewModel(
             viewModelScope.launch {
                 chatRepository.getCrisisTriggers().collect { crisis ->
                     _crisisTriggered.value = crisis
+                    RaazAnalytics.crisisTriggerSeen()
+                }
+            }
+        }
+    }
+
+    private fun subscribeToConnectionForAnalytics() {
+        viewModelScope.launch {
+            connectionState.collect { state ->
+                if (state == com.raaz.app.data.websocket.ConnectionState.CONNECTED) {
+                    RaazAnalytics.matchSuccess()
                 }
             }
         }
@@ -309,6 +324,7 @@ class ChatViewModel(
                     savedAt = System.currentTimeMillis()
                 )
             )
+            RaazAnalytics.vaultSave()
             _vaultSaveSuccess.emit(Unit)
         }
     }
