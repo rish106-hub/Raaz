@@ -1,0 +1,25 @@
+server/go.mod
+  s_178a905c0b0d55::t_3dbef46ddfd70f 5-9
+server/db/migrations/001_init.sql
+  s_178a905c0b0d55::t_147fc32ac94f26 1-26
+server/db/postgres.go
+  s_178a905c0b0d55::t_877919efe1e46d 1-12
+server/db/redis.go
+  s_178a905c0b0d55::t_4d8000a60eb653 1-19
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "c5245f2e771aa33c784eda13cd53435364959e20",
+  "prompts": {},
+  "sessions": {
+    "s_178a905c0b0d55": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a3e5487f-ad91-4580-9fb9-0bfb002e88b3",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "RISHAV DEWAN <rishavdewan10@gmail.com>"
+    }
+  }
+}
