@@ -1,0 +1,22 @@
+server/app_test.go
+  s_178a905c0b0d55::t_45a7dc14172dcb 340-537,540-545
+  s_178a905c0b0d55::t_8565fd6babbb15 6
+server/moderation_test.go
+  s_178a905c0b0d55::t_7b0036057b31fe 1-83
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "9c62ba3e58dfd9404540f608a92e69055899e002",
+  "prompts": {},
+  "sessions": {
+    "s_178a905c0b0d55": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a3e5487f-ad91-4580-9fb9-0bfb002e88b3",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "RISHAV DEWAN <rishavdewan10@gmail.com>"
+    }
+  }
+}
