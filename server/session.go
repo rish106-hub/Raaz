@@ -3,7 +3,7 @@ package main
 import (
 	"crypto/rand"
 	"fmt"
-	"log"
+	"log/slog"
 	mathrand "math/rand"
 	"sync/atomic"
 	"time"
@@ -77,7 +77,7 @@ func createSession(a, b *Client, ss store.SessionStore) {
 		b.alias = randomAlias()
 	}
 
-	log.Printf("session %s: %q <-> %q (prompt=%s)", sess.id, a.alias, b.alias, a.params.PromptID)
+	slog.Info("session created", "sessionID", sess.id, "aliasA", a.alias, "aliasB", b.alias, "promptID", a.params.PromptID)
 
 	rec := store.SessionRecord{
 		SessionID: sess.id,
@@ -90,7 +90,7 @@ func createSession(a, b *Client, ss store.SessionStore) {
 		ExpiresAt: now.Add(time.Duration(SessionDuration) * time.Second),
 	}
 	if err := ss.Save(rec); err != nil {
-		log.Printf("save session: %v", err)
+		slog.Warn("save session error", "sessionID", sess.id, "err", err)
 	}
 
 	sendConnected(a, sess.id, b.alias)
@@ -108,7 +108,7 @@ func sendConnected(c *Client, matchID, partnerAlias string) {
 		SessionDurationSeconds: SessionDuration,
 	})
 	if err != nil {
-		log.Printf("marshal CONNECTED: %v", err)
+		slog.Error("marshal CONNECTED error", "err", err)
 		return
 	}
 	c.safeSend(data)

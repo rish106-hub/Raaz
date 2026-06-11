@@ -1,7 +1,7 @@
 package main
 
 import (
-	"log"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -39,7 +39,7 @@ func (c *Client) safeSend(data []byte) {
 	select {
 	case c.send <- data:
 	default:
-		log.Printf("send buffer full for %s, dropping message", c.alias)
+		slog.Warn("send buffer full, dropping message", "alias", c.alias)
 	}
 }
 
@@ -89,14 +89,14 @@ func (c *Client) readPump(q store.QueueStore) {
 		_, msg, err := c.conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseNormalClosure) {
-				log.Printf("read error (%s): %v", c.params.AnonymousID, err)
+				slog.Warn("read error", "anonymousID", c.params.AnonymousID, "err", err)
 			}
 			return
 		}
 		select {
 		case c.recv <- msg:
 		default:
-			log.Printf("recv buffer full for %s, dropping inbound message", c.params.AnonymousID)
+			slog.Warn("recv buffer full, dropping inbound message", "anonymousID", c.params.AnonymousID)
 		}
 	}
 }
@@ -121,7 +121,8 @@ func (h *Hub) Register(c *Client) {
 	h.clients[c] = struct{}{}
 	h.byID[c.params.AnonymousID] = c
 	h.mu.Unlock()
-	log.Printf("connected: %s", c.params.AnonymousID)
+	wsConnectionsActive.Inc()
+	slog.Info("client connected", "anonymousID", c.params.AnonymousID)
 }
 
 // Unregister removes the client from the hub. It does NOT close c.send —
@@ -131,7 +132,8 @@ func (h *Hub) Unregister(c *Client) {
 	delete(h.clients, c)
 	delete(h.byID, c.params.AnonymousID)
 	h.mu.Unlock()
-	log.Printf("disconnected: %s", c.params.AnonymousID)
+	wsConnectionsActive.Dec()
+	slog.Info("client disconnected", "anonymousID", c.params.AnonymousID)
 }
 
 // LookupByID returns the live *Client for anonymousID, or nil if not connected.

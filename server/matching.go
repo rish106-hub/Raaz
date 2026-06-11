@@ -1,7 +1,7 @@
 package main
 
 import (
-	"log"
+	"log/slog"
 	"time"
 
 	"github.com/raaz/server/store"
@@ -34,14 +34,15 @@ func (a *App) tryMatch() {
 	now := time.Now()
 
 	if err := a.queue.MigrateToFallback(now.Add(-FallbackDelay)); err != nil {
-		log.Printf("migrateToFallback: %v", err)
+		slog.Warn("migrateToFallback error", "err", err)
 	}
 
 	entries, err := a.queue.Snapshot()
 	if err != nil {
-		log.Printf("queue snapshot: %v", err)
+		slog.Error("queue snapshot error", "err", err)
 		return
 	}
+	matchQueueDepth.Set(float64(len(entries)))
 	if len(entries) < 2 {
 		return
 	}
@@ -83,6 +84,7 @@ func (a *App) tryMatch() {
 		}
 		a.queue.Remove(p.a.AnonymousID) //nolint:errcheck
 		a.queue.Remove(p.b.AnonymousID) //nolint:errcheck
+		matchesTotal.Inc()
 		go createSession(aClient, bClient, a.sessions)
 	}
 }

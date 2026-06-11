@@ -4,12 +4,13 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/raaz/server/store"
 )
 
@@ -49,6 +50,8 @@ func (a *App) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		a.handleWS(w, r)
 	case "/vault/messages":
 		a.handleVaultMessages(w, r)
+	case "/metrics":
+		promhttp.Handler().ServeHTTP(w, r)
 	case "/health":
 		w.WriteHeader(http.StatusOK)
 	default:
@@ -65,7 +68,7 @@ func (a *App) handleWS(w http.ResponseWriter, r *http.Request) {
 
 	banned, err := globalStrikes.IsBanned(params.AnonymousID)
 	if err != nil {
-		log.Printf("IsBanned error: %v", err)
+		slog.Warn("IsBanned check error", "anonymousID", params.AnonymousID, "err", err)
 		// fail open — don't block user on transient store errors
 	} else if banned {
 		http.Error(w, "temporarily banned due to repeated violations", http.StatusForbidden)
@@ -74,7 +77,7 @@ func (a *App) handleWS(w http.ResponseWriter, r *http.Request) {
 
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Printf("upgrade error: %v", err)
+		slog.Error("WebSocket upgrade error", "err", err)
 		return
 	}
 
@@ -94,7 +97,7 @@ func (a *App) handleWS(w http.ResponseWriter, r *http.Request) {
 		City:        params.City,
 		JoinedAt:    time.Now(),
 	}); err != nil {
-		log.Printf("enqueue error: %v", err)
+		slog.Error("enqueue error", "anonymousID", params.AnonymousID, "err", err)
 	}
 
 	go c.writePump()
@@ -149,7 +152,7 @@ func (a *App) handleVaultMessages(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusConflict)
 			return
 		}
-		log.Printf("vault save: %v", err)
+		slog.Error("vault save error", "messageID", req.MessageID, "err", err)
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}

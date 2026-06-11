@@ -2,7 +2,7 @@ package main
 
 import (
 	"encoding/json"
-	"log"
+	"log/slog"
 	"time"
 
 	"github.com/raaz/server/store"
@@ -14,7 +14,7 @@ import (
 func routeMessage(raw []byte, src *Client, sess *Session) []byte {
 	var env Envelope
 	if err := json.Unmarshal(raw, &env); err != nil {
-		log.Printf("invalid JSON from %s: %v", src.alias, err)
+		slog.Warn("invalid JSON from client", "alias", src.alias, "err", err)
 		return nil
 	}
 
@@ -35,7 +35,7 @@ func routeMessage(raw []byte, src *Client, sess *Session) []byte {
 		return raw
 	default:
 		// Unknown types dropped; avoids forwarding unexpected client frames.
-		log.Printf("unknown event type %q from %s", env.Type, src.alias)
+		slog.Warn("unknown event type", "type", env.Type, "alias", src.alias)
 		return nil
 	}
 }
@@ -53,14 +53,16 @@ func handleChatMessage(payload json.RawMessage, src *Client, sess *Session) []by
 
 	if result.IsCrisis {
 		// Trigger crisis support overlay on both clients; drop the message.
+		crisisTriggersTotal.Inc()
 		sess.triggerCrisis()
 		return nil
 	}
 
 	if result.Flagged {
+		moderationStrikesTotal.WithLabelValues(string(result.Category)).Inc()
 		strike, err := globalStrikes.RecordStrike(src.params.AnonymousID)
 		if err != nil {
-			log.Printf("record strike: %v", err)
+			slog.Error("record strike error", "anonymousID", src.params.AnonymousID, "err", err)
 			return nil
 		}
 		notifyModerationAlert(src, result, strike)

@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 
@@ -11,6 +11,8 @@ import (
 )
 
 func main() {
+	initLogger()
+
 	app := buildApp()
 	app.Start()
 
@@ -19,8 +21,20 @@ func main() {
 		port = "8080"
 	}
 
-	log.Printf("raaz server listening on :%s", port)
-	log.Fatal(http.ListenAndServe(":"+port, corsMiddleware(app)))
+	slog.Info("raaz server starting", "port", port)
+	if err := http.ListenAndServe(":"+port, corsMiddleware(app)); err != nil {
+		slog.Error("server exited", "err", err)
+		os.Exit(1)
+	}
+}
+
+// initLogger configures slog. When LOG_FORMAT=json (e.g. inside Docker),
+// emits structured JSON; otherwise uses the human-readable text handler.
+func initLogger() {
+	if os.Getenv("LOG_FORMAT") == "json" {
+		slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
+	}
+	// else: default text handler — clear for local dev
 }
 
 // buildApp selects in-memory or production (PostgreSQL + Redis) store impls
@@ -36,25 +50,25 @@ func buildApp() *App {
 
 	pool, err := db.NewPool(context.Background())
 	if err != nil {
-		log.Printf("postgres unavailable, falling back to in-memory: %v", err)
+		slog.Warn("postgres unavailable, falling back to in-memory", "err", err)
 		return NewApp()
 	}
 
 	rdb, err := db.NewClient()
 	if err != nil {
-		log.Printf("redis client error, falling back to in-memory: %v", err)
+		slog.Warn("redis client error, falling back to in-memory", "err", err)
 		pool.Close()
 		return NewApp()
 	}
 
 	if err := rdb.Ping(context.Background()).Err(); err != nil {
-		log.Printf("redis unavailable, falling back to in-memory: %v", err)
+		slog.Warn("redis unavailable, falling back to in-memory", "err", err)
 		pool.Close()
 		return NewApp()
 	}
 
-	log.Println("postgres ready")
-	log.Println("redis ready")
+	slog.Info("postgres ready")
+	slog.Info("redis ready")
 
 	globalStrikes = store.NewPGStrikeTracker(pool, rdb)
 
