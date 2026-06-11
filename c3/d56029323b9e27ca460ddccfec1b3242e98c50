@@ -1,0 +1,21 @@
+server/load_test.go
+  s_178a905c0b0d55::t_61a7122d959db8 1-54
+server/main.go
+  s_178a905c0b0d55::t_428a879089c809 4,8-10,14,25-66
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "c3d56029323b9e27ca460ddccfec1b3242e98c50",
+  "prompts": {},
+  "sessions": {
+    "s_178a905c0b0d55": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a3e5487f-ad91-4580-9fb9-0bfb002e88b3",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "RISHAV DEWAN <rishavdewan10@gmail.com>"
+    }
+  }
+}
