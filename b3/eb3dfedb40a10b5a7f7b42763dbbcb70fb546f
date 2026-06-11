@@ -1,0 +1,34 @@
+app/src/main/AndroidManifest.xml
+  s_178a905c0b0d55::t_addb93c404390d 6
+app/src/main/java/com/raaz/app/RaazApplication.kt
+  s_178a905c0b0d55::t_5fdffac00b84bb 1-15
+app/src/main/java/com/raaz/app/features/chat/ChatViewModel.kt
+  s_178a905c0b0d55::t_7aec99b69e8229 327
+  s_178a905c0b0d55::t_ace4597d565ee6 6
+  s_178a905c0b0d55::t_45634c93f36e0c 174
+  s_178a905c0b0d55::t_8fd5bcc8124f11 192
+  s_178a905c0b0d55::t_cf4ddcac98994b 208
+  s_178a905c0b0d55::t_32b0a893501657 214-218
+  s_178a905c0b0d55::t_b85455a4e74c10 105
+app/src/main/java/com/raaz/app/features/matching/MatchingViewModel.kt
+  s_178a905c0b0d55::t_1140366f37374e 6
+  s_178a905c0b0d55::t_abc70efa41f129 39
+app/src/main/java/com/raaz/app/analytics/RaazAnalytics.kt
+  s_178a905c0b0d55::t_fd09401e2fe0ac 1-29
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "b3eb3dfedb40a10b5a7f7b42763dbbcb70fb546f",
+  "prompts": {},
+  "sessions": {
+    "s_178a905c0b0d55": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a3e5487f-ad91-4580-9fb9-0bfb002e88b3",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "RISHAV DEWAN <rishavdewan10@gmail.com>"
+    }
+  }
+}
