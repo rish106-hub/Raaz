@@ -5,10 +5,47 @@ import (
 	"fmt"
 	"log"
 	mathrand "math/rand"
+	"sync/atomic"
 	"time"
 
 	"github.com/gorilla/websocket"
 )
+
+// CrisisPauseDuration is how long message routing is suspended after a crisis
+// trigger. Overridable in tests via package-level assignment.
+var CrisisPauseDuration = 30 * time.Second
+
+// Session holds shared state for a matched pair of clients.
+type Session struct {
+	id   string
+	a, b *Client
+	// paused is set to true when a crisis is detected; the relay goroutines
+	// drop messages while paused and resume after CrisisPauseDuration.
+	paused atomic.Bool
+}
+
+// triggerCrisis pauses the session, sends CRISIS_TRIGGERED to both participants,
+// and schedules an auto-resume after CrisisPauseDuration. No-op if already paused.
+func (sess *Session) triggerCrisis() {
+	if sess.paused.Swap(true) {
+		return // already in crisis mode
+	}
+	data, _ := marshalEnvelope(EventCrisisTriggered, CrisisTriggeredPayload{
+		Helplines: []string{
+			"iCall: 9152987821",
+			"Vandrevala Foundation: 1860-2662-345",
+			"AASRA: 82-29-99-99-99",
+			"Snehi: 044-24640050",
+		},
+		Message: "You don't have to face this alone. Please reach out to a helpline.",
+	})
+	sess.a.safeSend(data)
+	sess.b.safeSend(data)
+	go func() {
+		time.Sleep(CrisisPauseDuration)
+		sess.paused.Store(false)
+	}()
+}
 
 // generateID returns a UUID-v4-like hex string using crypto/rand.
 func generateID() string {
@@ -29,7 +66,7 @@ func randomAlias() string {
 // createSession pairs two clients: assigns aliases, sends CONNECTED to both,
 // then starts bidirectional relay goroutines.
 func createSession(a, b *Client) {
-	sessionID := generateID()
+	sess := &Session{id: generateID(), a: a, b: b}
 
 	a.alias = randomAlias()
 	b.alias = randomAlias()
@@ -37,15 +74,15 @@ func createSession(a, b *Client) {
 		b.alias = randomAlias()
 	}
 
-	log.Printf("session %s: %q <-> %q (prompt=%s)", sessionID, a.alias, b.alias, a.params.PromptID)
+	log.Printf("session %s: %q <-> %q (prompt=%s)", sess.id, a.alias, b.alias, a.params.PromptID)
 
-	sendConnected(a, sessionID, b.alias)
-	sendConnected(b, sessionID, a.alias)
+	sendConnected(a, sess.id, b.alias)
+	sendConnected(b, sess.id, a.alias)
 
 	// Each relay goroutine reads from src.recv and writes to dst.send.
 	// When src disconnects (recv closed), it notifies dst and closes dst.conn.
-	go runRelay(a, b)
-	go runRelay(b, a)
+	go runRelay(a, b, sess)
+	go runRelay(b, a, sess)
 }
 
 // sendConnected emits the CONNECTED event to the given client.
@@ -62,11 +99,10 @@ func sendConnected(c *Client, matchID, partnerAlias string) {
 	c.safeSend(data)
 }
 
-// runRelay forwards all messages from src.recv to dst.send, rewriting
-// senderAlias with the server-assigned alias to prevent identity spoofing.
-// When src.recv is closed (src disconnected), it notifies dst and closes
-// dst.conn so dst's pumps also exit cleanly.
-func runRelay(src, dst *Client) {
+// runRelay forwards messages from src.recv to dst.send through the moderation
+// pipeline. Drops frames while sess.paused is true (crisis mode).
+// When src.recv is closed (src disconnected), notifies dst and closes dst.conn.
+func runRelay(src, dst *Client, sess *Session) {
 	defer func() {
 		notifyDisconnect(dst)
 		// Allow writePump to flush the DISCONNECT message before forcing close.
@@ -75,9 +111,12 @@ func runRelay(src, dst *Client) {
 	}()
 
 	for msg := range src.recv {
-		out := routeMessage(msg, src)
+		if sess.paused.Load() {
+			continue // crisis mode — drop message
+		}
+		out := routeMessage(msg, src, sess)
 		if out == nil {
-			continue // invalid or unknown frame — dropped
+			continue // blocked by moderation or unknown frame
 		}
 		dst.safeSend(out)
 	}
