@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -336,7 +337,212 @@ func TestBidirectionalMessaging(t *testing.T) {
 	}
 }
 
+// TestModerationBlocksBannedPhrase verifies that a harassment phrase sent by
+// client A is blocked (B never receives it) and A receives a MODERATION_ALERT
+// with action=warning and category=harassment.
+func TestModerationBlocksBannedPhrase(t *testing.T) {
+	wsBase, cleanup := testServer(t)
+	defer cleanup()
+
+	aID := t.Name() + "-A"
+	bID := t.Name() + "-B"
+	params := "?promptId=mod-p1&ageBucket=18-25&city=Delhi"
+
+	connA := dialWS(t, wsBase+params+"&anonymousId="+aID)
+	defer connA.Close()
+	connB := dialWS(t, wsBase+params+"&anonymousId="+bID)
+	defer connB.Close()
+
+	readEnvelope(t, connA, 2*time.Second) // CONNECTED
+	readEnvelope(t, connB, 2*time.Second) // CONNECTED
+
+	sendViolation(t, connA, "kill yourself")
+
+	// A receives MODERATION_ALERT — strike 1, action=warning.
+	env := readEnvelope(t, connA, 2*time.Second)
+	if env.Type != EventModerationAlert {
+		t.Fatalf("A: expected MODERATION_ALERT, got %q", env.Type)
+	}
+	var alert ModerationAlertPayload
+	mustUnmarshal(t, env.Payload, &alert)
+	if alert.Action != "warning" {
+		t.Errorf("strike 1 action: want warning, got %q", alert.Action)
+	}
+	if alert.StrikeNum != 1 {
+		t.Errorf("strikeNum: want 1, got %d", alert.StrikeNum)
+	}
+	if alert.Category != string(CategoryHarassment) {
+		t.Errorf("category: want %q, got %q", CategoryHarassment, alert.Category)
+	}
+
+	// B must NOT receive the blocked message — a short read deadline should expire.
+	connB.SetReadDeadline(time.Now().Add(300 * time.Millisecond))
+	_, _, err := connB.ReadMessage()
+	if err == nil {
+		t.Error("B should not receive a moderation-blocked message")
+	}
+}
+
+// TestStrikeSystemDisconnectsAndBans verifies that two violations from the same
+// anonymousId trigger a disconnect on the second strike, notify the partner with
+// DISCONNECT, and block the user from reconnecting (HTTP 403).
+func TestStrikeSystemDisconnectsAndBans(t *testing.T) {
+	wsBase, cleanup := testServer(t)
+	defer cleanup()
+
+	aID := t.Name() + "-A"
+	bID := t.Name() + "-B"
+	params := "?promptId=mod-p2&ageBucket=18-25&city=Mumbai"
+
+	connA := dialWS(t, wsBase+params+"&anonymousId="+aID)
+	defer connA.Close()
+	connB := dialWS(t, wsBase+params+"&anonymousId="+bID)
+	defer connB.Close()
+
+	readEnvelope(t, connA, 2*time.Second)
+	readEnvelope(t, connB, 2*time.Second)
+
+	// Strike 1: warning.
+	sendViolation(t, connA, "kill yourself")
+	env := readEnvelope(t, connA, 2*time.Second)
+	if env.Type != EventModerationAlert {
+		t.Fatalf("A: expected MODERATION_ALERT on strike 1, got %q", env.Type)
+	}
+
+	// Strike 2: disconnect.
+	sendViolation(t, connA, "you should die")
+	env = readEnvelope(t, connA, 2*time.Second)
+	if env.Type != EventModerationAlert {
+		t.Fatalf("A: expected MODERATION_ALERT on strike 2, got %q", env.Type)
+	}
+	var alert ModerationAlertPayload
+	mustUnmarshal(t, env.Payload, &alert)
+	if alert.Action != "disconnect" {
+		t.Errorf("strike 2 action: want disconnect, got %q", alert.Action)
+	}
+	if alert.StrikeNum != 2 {
+		t.Errorf("strikeNum: want 2, got %d", alert.StrikeNum)
+	}
+
+	// B must receive DISCONNECT after the server force-closes A's connection.
+	// Allow 3 s for the 500 ms server delay + 150 ms relay flush.
+	env = readEnvelope(t, connB, 3*time.Second)
+	if env.Type != EventDisconnect {
+		t.Errorf("B: expected DISCONNECT after A banned, got %q", env.Type)
+	}
+
+	// Banned user must be rejected with HTTP 403.
+	_, resp, err := websocket.DefaultDialer.Dial(wsBase+params+"&anonymousId="+aID, nil)
+	if err == nil {
+		t.Fatal("banned user should not be able to reconnect")
+	}
+	if resp != nil && resp.StatusCode != http.StatusForbidden {
+		t.Errorf("expected HTTP 403 for banned user, got %d", resp.StatusCode)
+	}
+}
+
+// TestCrisisTriggerBroadcastsToBothClients verifies that a self-harm phrase
+// causes CRISIS_TRIGGERED to be sent to both participants in the session.
+func TestCrisisTriggerBroadcastsToBothClients(t *testing.T) {
+	wsBase, cleanup := testServer(t)
+	defer cleanup()
+
+	aID := t.Name() + "-A"
+	bID := t.Name() + "-B"
+	params := "?promptId=mod-p3&ageBucket=18-25&city=Bangalore"
+
+	connA := dialWS(t, wsBase+params+"&anonymousId="+aID)
+	defer connA.Close()
+	connB := dialWS(t, wsBase+params+"&anonymousId="+bID)
+	defer connB.Close()
+
+	readEnvelope(t, connA, 2*time.Second)
+	readEnvelope(t, connB, 2*time.Second)
+
+	sendViolation(t, connA, "i want to kill myself")
+
+	envA := readEnvelope(t, connA, 2*time.Second)
+	envB := readEnvelope(t, connB, 2*time.Second)
+
+	if envA.Type != EventCrisisTriggered {
+		t.Errorf("A: expected CRISIS_TRIGGERED, got %q", envA.Type)
+	}
+	if envB.Type != EventCrisisTriggered {
+		t.Errorf("B: expected CRISIS_TRIGGERED, got %q", envB.Type)
+	}
+
+	var crisis CrisisTriggeredPayload
+	mustUnmarshal(t, envA.Payload, &crisis)
+	if len(crisis.Helplines) == 0 {
+		t.Error("CRISIS_TRIGGERED must include helplines")
+	}
+	if crisis.Message == "" {
+		t.Error("CRISIS_TRIGGERED must include a message")
+	}
+}
+
+// TestMessagesPausedDuringCrisis verifies that the session drops messages while
+// paused and resumes delivery after CrisisPauseDuration elapses.
+func TestMessagesPausedDuringCrisis(t *testing.T) {
+	orig := CrisisPauseDuration
+	CrisisPauseDuration = 400 * time.Millisecond
+	defer func() { CrisisPauseDuration = orig }()
+
+	wsBase, cleanup := testServer(t)
+	defer cleanup()
+
+	aID := t.Name() + "-A"
+	bID := t.Name() + "-B"
+	params := "?promptId=mod-p4&ageBucket=26-35&city=Chennai"
+
+	connA := dialWS(t, wsBase+params+"&anonymousId="+aID)
+	defer connA.Close()
+	connB := dialWS(t, wsBase+params+"&anonymousId="+bID)
+	defer connB.Close()
+
+	readEnvelope(t, connA, 2*time.Second)
+	readEnvelope(t, connB, 2*time.Second)
+
+	// Trigger crisis; drain CRISIS_TRIGGERED from both sides.
+	sendViolation(t, connA, "thinking about suicide")
+	readEnvelope(t, connA, 2*time.Second)
+	readEnvelope(t, connB, 2*time.Second)
+
+	// While paused, a normal message from A must not reach B.
+	p, _ := json.Marshal(MessagePayload{MessageID: "paused", Text: "hello", SenderAlias: "x"})
+	sendMessage(t, connA, Envelope{Type: EventMessage, Payload: json.RawMessage(p)})
+
+	connB.SetReadDeadline(time.Now().Add(250 * time.Millisecond))
+	_, _, err := connB.ReadMessage()
+	if err == nil {
+		t.Error("B should not receive messages while session is paused")
+	}
+
+	// After pause expires, messages should flow again.
+	time.Sleep(500 * time.Millisecond)
+
+	p2, _ := json.Marshal(MessagePayload{MessageID: "resumed", Text: "back now", SenderAlias: "x"})
+	sendMessage(t, connA, Envelope{Type: EventMessage, Payload: json.RawMessage(p2)})
+
+	env := readEnvelope(t, connB, 2*time.Second)
+	if env.Type != EventMessage {
+		t.Errorf("B: expected MESSAGE after crisis resolved, got %q", env.Type)
+	}
+	var mp MessagePayload
+	mustUnmarshal(t, env.Payload, &mp)
+	if mp.Text != "back now" {
+		t.Errorf("message text: want %q, got %q", "back now", mp.Text)
+	}
+}
+
 // --- helpers ---
+
+// sendViolation sends a chat MESSAGE envelope with the given text.
+func sendViolation(t *testing.T, conn *websocket.Conn, text string) {
+	t.Helper()
+	p, _ := json.Marshal(MessagePayload{MessageID: "viol", Text: text, SenderAlias: "x"})
+	sendMessage(t, conn, Envelope{Type: EventMessage, Payload: json.RawMessage(p)})
+}
 
 func mustUnmarshal(t *testing.T, data json.RawMessage, v any) {
 	t.Helper()
