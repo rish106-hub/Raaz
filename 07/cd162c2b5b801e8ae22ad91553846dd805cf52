@@ -1,0 +1,29 @@
+server/store/pg_vault.go
+  s_178a905c0b0d55::t_162fe3a18886a8 1-63
+server/store/pg_strikes.go
+  s_178a905c0b0d55::t_dec1ffb2b828f1 1-112
+server/strikes.go
+  s_178a905c0b0d55::t_b5f9e563c2fa12 3,5-8,11
+server/store/redis_queue.go
+  s_178a905c0b0d55::t_4f8e74e68f149e 1-161
+server/store/memory_strikes.go
+  s_178a905c0b0d55::t_f84c068563a9e2 1-47
+server/router.go
+  s_178a905c0b0d55::t_dba79c36e4ab4c 7-8,61-65,67,86,88
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "07cd162c2b5b801e8ae22ad91553846dd805cf52",
+  "prompts": {},
+  "sessions": {
+    "s_178a905c0b0d55": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a3e5487f-ad91-4580-9fb9-0bfb002e88b3",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "RISHAV DEWAN <rishavdewan10@gmail.com>"
+    }
+  }
+}
