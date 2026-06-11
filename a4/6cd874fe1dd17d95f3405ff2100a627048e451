@@ -1,0 +1,39 @@
+app/src/main/java/com/raaz/app/data/repository/ChatRepository.kt
+  s_178a905c0b0d55::t_3b9df4b9c57042 38-49
+  s_178a905c0b0d55::t_28c685114fefb5 167-190
+app/build.gradle.kts
+  s_178a905c0b0d55::t_8ad744f206e74b 18
+  s_178a905c0b0d55::t_9b0ad30cd0ae63 36
+app/src/main/java/com/raaz/app/data/websocket/WebSocketClient.kt
+  s_178a905c0b0d55::t_205d7990a85ca7 173-182
+app/src/main/java/com/raaz/app/data/websocket/WebSocketEvent.kt
+  s_178a905c0b0d55::t_1c9fef32ecea8a 72-87
+app/src/main/java/com/raaz/app/features/chat/ChatScreen.kt
+  s_178a905c0b0d55::t_2e97a6cf0b92ad 461-567
+  s_178a905c0b0d55::t_f86414f9f230c6 61
+  s_178a905c0b0d55::t_212bd7f0b1dfc1 45,47
+  s_178a905c0b0d55::t_597a7d0f199a53 78-79
+app/src/main/java/com/raaz/app/features/chat/ChatViewModelFactory.kt
+  s_178a905c0b0d55::t_bf3d2ba4defaba 4,10,18-19,23,30-47
+app/src/main/java/com/raaz/app/features/chat/ChatViewModel.kt
+  s_178a905c0b0d55::t_c439c86ddec25a 194-216
+  s_178a905c0b0d55::t_a51d8675cb1a90 78-83
+  s_178a905c0b0d55::t_3c4c1cea4a273b 8,10
+  s_178a905c0b0d55::t_3dc55eb1c8c408 103
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "a46cd874fe1dd17d95f3405ff2100a627048e451",
+  "prompts": {},
+  "sessions": {
+    "s_178a905c0b0d55": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a3e5487f-ad91-4580-9fb9-0bfb002e88b3",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "RISHAV DEWAN <rishavdewan10@gmail.com>"
+    }
+  }
+}
