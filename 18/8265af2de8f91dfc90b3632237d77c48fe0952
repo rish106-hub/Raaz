@@ -1,0 +1,25 @@
+server/Dockerfile
+  s_178a905c0b0d55::t_1992101073c6f3 1-26
+docker-compose.yml
+  s_178a905c0b0d55::t_9c403799374bab 1-54
+.env.example
+  s_178a905c0b0d55::t_bfe237c0c2c313 1-6
+.gitignore
+  s_178a905c0b0d55::t_a6e426e4da9fb1 22-28
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "188265af2de8f91dfc90b3632237d77c48fe0952",
+  "prompts": {},
+  "sessions": {
+    "s_178a905c0b0d55": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a3e5487f-ad91-4580-9fb9-0bfb002e88b3",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "RISHAV DEWAN <rishavdewan10@gmail.com>"
+    }
+  }
+}
