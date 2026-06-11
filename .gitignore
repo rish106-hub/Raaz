@@ -26,3 +26,4 @@ app/google-services.json
 
 # Go build cache
 server/vendor/
+Planning.md
