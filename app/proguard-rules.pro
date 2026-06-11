@@ -47,6 +47,14 @@
 # Compose — keep lambdas stable for recomposition tracking
 -keepclassmembers class * implements androidx.compose.runtime.Stable { *; }
 
+# WebSocket event sealed classes — Gson reads field names via reflection at runtime
+-keep class com.raaz.app.data.websocket.WebSocketEvent { *; }
+-keep class com.raaz.app.data.websocket.WebSocketEvent$* { *; }
+
+# Firebase Crashlytics + Analytics
+-keep class com.google.firebase.** { *; }
+-dontwarn com.google.firebase.**
+
 # General Kotlin
 -keep class kotlin.** { *; }
 -keep class kotlin.Metadata { *; }
