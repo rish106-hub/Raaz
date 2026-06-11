@@ -15,6 +15,8 @@ const (
 	EventHandleRevealed    EventType = "HANDLE_REVEALED"
 	EventError             EventType = "ERROR"
 	EventDisconnect        EventType = "DISCONNECT"
+	EventModerationAlert   EventType = "MODERATION_ALERT"
+	EventCrisisTriggered   EventType = "CRISIS_TRIGGERED"
 )
 
 // Envelope is the top-level frame for every WebSocket message in both directions.
@@ -81,6 +83,20 @@ type HandleExchangePayload struct {
 
 type HandleRevealedPayload struct {
 	PartnerHandle string `json:"partnerHandle"`
+}
+
+// ModerationAlertPayload is sent to the offending client when a message is blocked.
+type ModerationAlertPayload struct {
+	Category  string `json:"category"`
+	StrikeNum int    `json:"strikeNum"`
+	Action    string `json:"action"` // "warning" or "disconnect"
+	Reason    string `json:"reason"`
+}
+
+// CrisisTriggeredPayload is broadcast to both session participants on crisis detection.
+type CrisisTriggeredPayload struct {
+	Helplines []string `json:"helplines"`
+	Message   string   `json:"message"`
 }
 
 // RegistrationParams are extracted from WebSocket connection URL query parameters.
