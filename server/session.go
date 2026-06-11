@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/raaz/server/store"
 )
 
 // CrisisPauseDuration is how long message routing is suspended after a crisis
@@ -22,6 +23,7 @@ type Session struct {
 	// paused is set to true when a crisis is detected; the relay goroutines
 	// drop messages while paused and resume after CrisisPauseDuration.
 	paused atomic.Bool
+	ss     store.SessionStore
 }
 
 // triggerCrisis pauses the session, sends CRISIS_TRIGGERED to both participants,
@@ -63,10 +65,11 @@ func randomAlias() string {
 	return fmt.Sprintf("Raaz #%04d", mathrand.Intn(9000)+1000)
 }
 
-// createSession pairs two clients: assigns aliases, sends CONNECTED to both,
-// then starts bidirectional relay goroutines.
-func createSession(a, b *Client) {
-	sess := &Session{id: generateID(), a: a, b: b}
+// createSession pairs two clients: assigns aliases, persists the session record,
+// sends CONNECTED to both, then starts bidirectional relay goroutines.
+func createSession(a, b *Client, ss store.SessionStore) {
+	now := time.Now()
+	sess := &Session{id: generateID(), a: a, b: b, ss: ss}
 
 	a.alias = randomAlias()
 	b.alias = randomAlias()
@@ -76,11 +79,23 @@ func createSession(a, b *Client) {
 
 	log.Printf("session %s: %q <-> %q (prompt=%s)", sess.id, a.alias, b.alias, a.params.PromptID)
 
+	rec := store.SessionRecord{
+		SessionID: sess.id,
+		AID:       a.params.AnonymousID,
+		BID:       b.params.AnonymousID,
+		AAlias:    a.alias,
+		BAlias:    b.alias,
+		PromptID:  a.params.PromptID,
+		StartedAt: now,
+		ExpiresAt: now.Add(time.Duration(SessionDuration) * time.Second),
+	}
+	if err := ss.Save(rec); err != nil {
+		log.Printf("save session: %v", err)
+	}
+
 	sendConnected(a, sess.id, b.alias)
 	sendConnected(b, sess.id, a.alias)
 
-	// Each relay goroutine reads from src.recv and writes to dst.send.
-	// When src disconnects (recv closed), it notifies dst and closes dst.conn.
 	go runRelay(a, b, sess)
 	go runRelay(b, a, sess)
 }
