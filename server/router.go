@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"log"
 	"time"
+
+	"github.com/raaz/server/store"
 )
 
 // routeMessage is called by the relay before forwarding a frame to the partner.
@@ -56,9 +58,13 @@ func handleChatMessage(payload json.RawMessage, src *Client, sess *Session) []by
 	}
 
 	if result.Flagged {
-		strike := globalStrikes.RecordStrike(src.params.AnonymousID)
+		strike, err := globalStrikes.RecordStrike(src.params.AnonymousID)
+		if err != nil {
+			log.Printf("record strike: %v", err)
+			return nil
+		}
 		notifyModerationAlert(src, result, strike)
-		if strike.Action == StrikeActionDisconnect {
+		if strike.Action == store.StrikeActionDisconnect {
 			// Give the MODERATION_ALERT frame a chance to reach the client
 			// before the connection is closed.
 			go func() {
@@ -77,9 +83,9 @@ func handleChatMessage(payload json.RawMessage, src *Client, sess *Session) []by
 }
 
 // notifyModerationAlert sends a MODERATION_ALERT to the offending client only.
-func notifyModerationAlert(c *Client, mod ModerationResult, strike StrikeResult) {
+func notifyModerationAlert(c *Client, mod ModerationResult, strike store.StrikeResult) {
 	action := "warning"
-	if strike.Action == StrikeActionDisconnect {
+	if strike.Action == store.StrikeActionDisconnect {
 		action = "disconnect"
 	}
 	data, err := marshalEnvelope(EventModerationAlert, ModerationAlertPayload{
