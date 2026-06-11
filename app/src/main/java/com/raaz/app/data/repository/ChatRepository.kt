@@ -35,6 +35,18 @@ data class HandleReveal(
     val partnerHandle: String
 )
 
+data class ModerationAlertData(
+    val category: String,
+    val strikeNum: Int,
+    val action: String,
+    val reason: String
+)
+
+data class CrisisTriggerData(
+    val helplines: List<String>,
+    val message: String
+)
+
 class ChatRepository(
     private val webSocketClient: WebSocketClient,
     private val currentUserAlias: String
@@ -150,6 +162,30 @@ class ChatRepository(
             approved = approved
         )
         webSocketClient.send(event)
+    }
+
+    fun getModerationAlerts(): Flow<ModerationAlertData> {
+        return webSocketClient.events
+            .filterIsInstance<WebSocketEvent.ModerationAlert>()
+            .map { event ->
+                ModerationAlertData(
+                    category = event.category,
+                    strikeNum = event.strikeNum,
+                    action = event.action,
+                    reason = event.reason
+                )
+            }
+    }
+
+    fun getCrisisTriggers(): Flow<CrisisTriggerData> {
+        return webSocketClient.events
+            .filterIsInstance<WebSocketEvent.CrisisTriggered>()
+            .map { event ->
+                CrisisTriggerData(
+                    helplines = event.helplines,
+                    message = event.message
+                )
+            }
     }
 
     fun disconnect() {

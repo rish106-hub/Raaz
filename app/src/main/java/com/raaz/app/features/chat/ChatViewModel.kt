@@ -5,7 +5,9 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.raaz.app.data.models.ChatMessage
 import com.raaz.app.data.repository.ChatRepository
+import com.raaz.app.data.repository.CrisisTriggerData
 import com.raaz.app.data.repository.ExtensionRequest
+import com.raaz.app.data.repository.ModerationAlertData
 import com.raaz.app.data.repository.VaultRepository
 import com.raaz.app.data.room.ChatSession
 import com.raaz.app.data.room.ChatSessionDao
@@ -73,6 +75,12 @@ class ChatViewModel(
     private val _vaultSaveSuccess = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val vaultSaveSuccess: SharedFlow<Unit> = _vaultSaveSuccess.asSharedFlow()
 
+    private val _moderationAlert = MutableStateFlow<ModerationAlertData?>(null)
+    val moderationAlert: StateFlow<ModerationAlertData?> = _moderationAlert.asStateFlow()
+
+    private val _crisisTriggered = MutableStateFlow<CrisisTriggerData?>(null)
+    val crisisTriggered: StateFlow<CrisisTriggerData?> = _crisisTriggered.asStateFlow()
+
     val connectionState: StateFlow<ConnectionState> = chatRepository
         ?.connectionState
         ?.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ConnectionState.DISCONNECTED)
@@ -92,6 +100,7 @@ class ChatViewModel(
         subscribeToTyping()
         subscribeToExtensionEvents()
         subscribeToHandleExchange()
+        subscribeToCrisisAndModeration()
     }
 
     private fun recordSession() {
@@ -180,6 +189,29 @@ class ChatViewModel(
                 }
             }
         }
+    }
+
+    private fun subscribeToCrisisAndModeration() {
+        if (chatRepository != null) {
+            viewModelScope.launch {
+                chatRepository.getModerationAlerts().collect { alert ->
+                    _moderationAlert.value = alert
+                }
+            }
+            viewModelScope.launch {
+                chatRepository.getCrisisTriggers().collect { crisis ->
+                    _crisisTriggered.value = crisis
+                }
+            }
+        }
+    }
+
+    fun dismissModerationAlert() {
+        _moderationAlert.value = null
+    }
+
+    fun dismissCrisis() {
+        _crisisTriggered.value = null
     }
 
     private fun startTimer(fromMs: Long = remainingMs) {

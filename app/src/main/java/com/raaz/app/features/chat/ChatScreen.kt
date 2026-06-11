@@ -42,14 +42,14 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.style.TextAlign
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.raaz.app.BuildConfig
 import com.raaz.app.data.models.ChatMessage
 import com.raaz.app.data.websocket.ConnectionState
 import com.raaz.app.ui.theme.RaazAccent
 import com.raaz.app.ui.theme.RaazBackground
 import com.raaz.app.ui.theme.RaazSurface
-
-private const val WS_URL = "ws://10.0.2.2:8080/ws"
 
 @Composable
 fun ChatScreen(
@@ -58,8 +58,7 @@ fun ChatScreen(
     viewModel: ChatViewModel = run {
         val context = LocalContext.current
         val application = context.applicationContext as android.app.Application
-        val alias = remember { "Raaz #${(1000..9999).random()}" }
-        val factory = remember { ChatViewModelFactory(application, WS_URL, alias, prompt) }
+        val factory = remember { ChatViewModelFactory(application, BuildConfig.WS_BASE_URL, prompt) }
         viewModel(factory = factory)
     }
 ) {
@@ -76,6 +75,8 @@ fun ChatScreen(
     val partnerHandle by viewModel.partnerHandle.collectAsState()
     val connectionState by viewModel.connectionState.collectAsState()
     val pendingVaultMessage by viewModel.pendingVaultMessage.collectAsState()
+    val moderationAlert by viewModel.moderationAlert.collectAsState()
+    val crisisTriggered by viewModel.crisisTriggered.collectAsState()
     val userHandle = viewModel.getVisibleUserHandle()
 
     LaunchedEffect(Unit) {
@@ -453,6 +454,113 @@ fun ChatScreen(
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(text = "Partner", color = Color.White.copy(alpha = 0.6f), fontSize = 10.sp)
                     Text(text = partnerHandle!!, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                }
+            }
+        }
+    }
+
+    if (moderationAlert != null) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.55f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth(0.85f)
+                    .background(RaazSurface, RoundedCornerShape(12.dp))
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = if (moderationAlert!!.action == "disconnect") "You've been disconnected" else "Message blocked",
+                    color = Color.White,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = moderationAlert!!.reason,
+                    color = Color.White.copy(alpha = 0.6f),
+                    fontSize = 13.sp,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 20.sp
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Strike ${moderationAlert!!.strikeNum} of 2",
+                    color = Color(0xFFFFA500).copy(alpha = 0.85f),
+                    fontSize = 11.sp
+                )
+                Spacer(modifier = Modifier.height(20.dp))
+                OutlinedButton(
+                    onClick = { viewModel.dismissModerationAlert() },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp),
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.3f)),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
+                ) {
+                    Text(text = "OK", fontSize = 13.sp)
+                }
+            }
+        }
+    }
+
+    // Crisis overlay renders last so it sits on top of all other overlays.
+    if (crisisTriggered != null) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color(0xFF050505)),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 36.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text = "You matter.",
+                    color = Color.White,
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center
+                )
+                Text(
+                    text = crisisTriggered!!.message,
+                    color = Color.White.copy(alpha = 0.65f),
+                    fontSize = 14.sp,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 22.sp
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Helplines",
+                    color = RaazAccent,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+                crisisTriggered!!.helplines.forEach { helpline ->
+                    Text(
+                        text = helpline,
+                        color = Color.White.copy(alpha = 0.9f),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        textAlign = TextAlign.Center
+                    )
+                }
+                Spacer(modifier = Modifier.height(24.dp))
+                OutlinedButton(
+                    onClick = { viewModel.dismissCrisis() },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp),
+                    border = BorderStroke(1.dp, RaazAccent),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = RaazAccent)
+                ) {
+                    Text(text = "I'm OK", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                 }
             }
         }

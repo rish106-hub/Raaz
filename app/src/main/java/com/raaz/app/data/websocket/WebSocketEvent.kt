@@ -69,6 +69,22 @@ sealed class WebSocketEvent {
     data class Disconnect(
         val reason: String
     ) : WebSocketEvent()
+
+    @Serializable
+    @SerialName("MODERATION_ALERT")
+    data class ModerationAlert(
+        val category: String,
+        val strikeNum: Int,
+        val action: String,
+        val reason: String
+    ) : WebSocketEvent()
+
+    @Serializable
+    @SerialName("CRISIS_TRIGGERED")
+    data class CrisisTriggered(
+        val helplines: List<String>,
+        val message: String
+    ) : WebSocketEvent()
 }
 
 data class WebSocketMessage(

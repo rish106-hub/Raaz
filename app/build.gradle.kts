@@ -15,6 +15,7 @@ android {
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
+        buildConfigField("String", "WS_BASE_URL", "\"ws://10.0.2.2:8080/ws\"")
     }
 
     buildTypes {
@@ -32,6 +33,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 

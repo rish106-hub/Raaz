@@ -170,6 +170,16 @@ class WebSocketClient(
                 "DISCONNECT" -> WebSocketEvent.Disconnect(
                     reason = p.get("reason")?.asString ?: ""
                 )
+                "MODERATION_ALERT" -> WebSocketEvent.ModerationAlert(
+                    category = p.get("category")?.asString ?: "",
+                    strikeNum = p.get("strikeNum")?.asInt ?: 0,
+                    action = p.get("action")?.asString ?: "",
+                    reason = p.get("reason")?.asString ?: ""
+                )
+                "CRISIS_TRIGGERED" -> WebSocketEvent.CrisisTriggered(
+                    helplines = p.get("helplines")?.asJsonArray?.map { it.asString } ?: emptyList(),
+                    message = p.get("message")?.asString ?: ""
+                )
                 else -> throw IllegalArgumentException("Unknown event type: $type")
             }
         } catch (e: Exception) {
