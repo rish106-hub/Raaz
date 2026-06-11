@@ -1,0 +1,21 @@
+server/strikes.go
+  s_178a905c0b0d55::t_9e78247cbe226e 1-75
+server/app.go
+  s_178a905c0b0d55::t_8925caed9b70ad 55-59
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "723aeaa0037093a70488fb7c4f3f07372fc9145e",
+  "prompts": {},
+  "sessions": {
+    "s_178a905c0b0d55": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a3e5487f-ad91-4580-9fb9-0bfb002e88b3",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "RISHAV DEWAN <rishavdewan10@gmail.com>"
+    }
+  }
+}
