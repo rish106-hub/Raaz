@@ -1,0 +1,19 @@
+.gitignore
+  s_1cab3b77bfe862::t_65f556723b02e4 29
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "b8c949cc2e47aa2e2cf80181c9c7c5112d4b8ae8",
+  "prompts": {},
+  "sessions": {
+    "s_1cab3b77bfe862": {
+      "agent_id": {
+        "tool": "github-copilot-cli",
+        "id": "909ad7e0-b68e-4064-8989-e35e2f78722a",
+        "model": "claude-haiku-4.5"
+      },
+      "human_author": "RISHAV DEWAN <rishavdewan10@gmail.com>"
+    }
+  }
+}
