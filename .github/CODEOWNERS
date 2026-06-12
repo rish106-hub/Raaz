@@ -1,0 +1,28 @@
+# CODEOWNERS for Raaz
+# Defines who must review PRs touching each area.
+# All PRs require @rish106-hub approval (lead maintainer).
+# Syntax: <path-pattern> <github-username>
+
+# Global fallback - all files require lead maintainer review
+* @rish106-hub
+
+# Android app
+/app/ @rish106-hub
+
+# Backend (Go microservices)
+/server/ @rish106-hub
+
+# Infrastructure & CI
+/.github/ @rish106-hub
+/gradle/ @rish106-hub
+docker-compose.yml @rish106-hub
+build.gradle.kts @rish106-hub
+
+# Security-sensitive files - require extra scrutiny
+SECURITY.md @rish106-hub
+.env.example @rish106-hub
+
+# Documentation
+README.md @rish106-hub
+CONTRIBUTING.md @rish106-hub
+CODE_OF_CONDUCT.md @rish106-hub
