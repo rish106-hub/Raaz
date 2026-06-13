@@ -6,6 +6,7 @@ import "encoding/json"
 type EventType string
 
 const (
+	EventRegistered        EventType = "REGISTERED"
 	EventConnected         EventType = "CONNECTED"
 	EventMessage           EventType = "MESSAGE"
 	EventTyping            EventType = "TYPING"
@@ -97,6 +98,12 @@ type ModerationAlertPayload struct {
 type CrisisTriggeredPayload struct {
 	Helplines []string `json:"helplines"`
 	Message   string   `json:"message"`
+}
+
+// RegisteredPayload is the first event sent to a client after a successful WS upgrade.
+// ConnToken is a server-generated secret the client must supply on /vault/messages POST.
+type RegisteredPayload struct {
+	ConnToken string `json:"connToken"`
 }
 
 // RegistrationParams are extracted from WebSocket connection URL query parameters.

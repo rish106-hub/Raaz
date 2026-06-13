@@ -7,9 +7,9 @@ import (
 	"github.com/raaz/server/store"
 )
 
-// FallbackDelay is the queue wait time before the City constraint is relaxed
-// and the national pool is used. 15 s default; override in tests.
-var FallbackDelay = 15 * time.Second
+// FallbackDelay is the queue wait time before the City constraint is relaxed to
+// the national pool. 15 min per spec; overridable in tests.
+var FallbackDelay = 15 * time.Minute
 
 const (
 	// SessionDuration is the initial session length sent in the CONNECTED payload (seconds).
@@ -28,8 +28,8 @@ func (a *App) runMatchingLoop() {
 
 type matchedPair struct{ a, b store.WaitingEntry }
 
-// tryMatch snapshots the queue, pairs compatible clients, and starts sessions
-// for each pair. Clients that disconnected between snapshot and match are skipped.
+// tryMatch snapshots the queue, pairs compatible clients, and starts sessions.
+// Clients that disconnected between snapshot and match are skipped.
 func (a *App) tryMatch() {
 	now := time.Now()
 
@@ -40,6 +40,7 @@ func (a *App) tryMatch() {
 	entries, err := a.queue.Snapshot()
 	if err != nil {
 		slog.Error("queue snapshot error", "err", err)
+		matchQueueDepth.Set(0) // L-3: reset gauge so stale value doesn't mislead
 		return
 	}
 	matchQueueDepth.Set(float64(len(entries)))
@@ -64,12 +65,24 @@ func (a *App) tryMatch() {
 			eb := entries[j]
 			bFallback := now.Sub(eb.JoinedAt) >= FallbackDelay
 
-			if compatibleEntries(ea, eb, aFallback || bFallback) {
-				usedIDs[ea.AnonymousID] = true
-				usedIDs[eb.AnonymousID] = true
-				pairs = append(pairs, matchedPair{ea, eb})
-				break
+			if !compatibleEntries(ea, eb, aFallback || bFallback) {
+				continue
 			}
+
+			// M-1: skip pairs that have already been matched before
+			if a.matchHistory != nil {
+				prev, err := a.matchHistory.WerePreviouslyMatched(ea.AnonymousID, eb.AnonymousID)
+				if err != nil {
+					slog.Warn("matchHistory check error", "err", err)
+				} else if prev {
+					continue
+				}
+			}
+
+			usedIDs[ea.AnonymousID] = true
+			usedIDs[eb.AnonymousID] = true
+			pairs = append(pairs, matchedPair{ea, eb})
+			break
 		}
 	}
 
@@ -77,7 +90,6 @@ func (a *App) tryMatch() {
 		aClient := a.hub.LookupByID(p.a.AnonymousID)
 		bClient := a.hub.LookupByID(p.b.AnonymousID)
 		if aClient == nil || bClient == nil {
-			// Client disconnected between snapshot and match; clean up.
 			a.queue.Remove(p.a.AnonymousID) //nolint:errcheck
 			a.queue.Remove(p.b.AnonymousID) //nolint:errcheck
 			continue
@@ -85,13 +97,17 @@ func (a *App) tryMatch() {
 		a.queue.Remove(p.a.AnonymousID) //nolint:errcheck
 		a.queue.Remove(p.b.AnonymousID) //nolint:errcheck
 		matchesTotal.Inc()
+		if a.matchHistory != nil {
+			if err := a.matchHistory.RecordMatch(p.a.AnonymousID, p.b.AnonymousID); err != nil {
+				slog.Warn("record match error", "err", err)
+			}
+		}
 		go createSession(aClient, bClient, a.sessions)
 	}
 }
 
 // compatibleEntries returns true when a and b should be matched.
-// nationalFallback is true when either client has exceeded FallbackDelay,
-// relaxing the City constraint.
+// nationalFallback relaxes the City constraint.
 func compatibleEntries(a, b store.WaitingEntry, nationalFallback bool) bool {
 	if a.PromptID != b.PromptID || a.AgeBucket != b.AgeBucket {
 		return false

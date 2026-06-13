@@ -25,6 +25,7 @@ android {
             isMinifyEnabled = false
             applicationIdSuffix = ".debug"
             buildConfigField("String", "WS_BASE_URL", "\"ws://10.0.2.2:8080/ws\"")
+            buildConfigField("String", "API_BASE_URL", "\"http://10.0.2.2:8080\"")
         }
         release {
             isDebuggable = false
@@ -35,6 +36,7 @@ android {
                 "proguard-rules.pro"
             )
             buildConfigField("String", "WS_BASE_URL", "\"wss://api.raaz.app/ws\"")
+            buildConfigField("String", "API_BASE_URL", "\"https://api.raaz.app\"")
         }
     }
     compileOptions {
@@ -60,6 +62,7 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
+    implementation(libs.material)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.okhttp)
@@ -71,6 +74,7 @@ dependencies {
     implementation(platform("com.google.firebase:firebase-bom:33.0.0"))
     implementation("com.google.firebase:firebase-crashlytics-ktx")
     implementation("com.google.firebase:firebase-analytics-ktx")
+    implementation("com.google.firebase:firebase-messaging-ktx")
 
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.mockito.core)

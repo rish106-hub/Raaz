@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -33,7 +34,8 @@ func nationalQueueKey(promptID, ageBucket string) string {
 func paramsKey(id string) string { return "user_params:" + id }
 
 func (q *RedisQueueStore) Enqueue(entry WaitingEntry) error {
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
+	defer cancel()
 	key := cityQueueKey(entry)
 
 	raw, err := json.Marshal(entry)
@@ -50,10 +52,11 @@ func (q *RedisQueueStore) Enqueue(entry WaitingEntry) error {
 }
 
 func (q *RedisQueueStore) Remove(anonymousID string) error {
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
+	defer cancel()
 
 	raw, err := q.rdb.Get(ctx, paramsKey(anonymousID)).Bytes()
-	if err == redis.Nil {
+	if errors.Is(err, redis.Nil) {
 		return nil
 	}
 	if err != nil {
@@ -74,7 +77,8 @@ func (q *RedisQueueStore) Remove(anonymousID string) error {
 }
 
 func (q *RedisQueueStore) Snapshot() ([]WaitingEntry, error) {
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 
 	keys, err := q.rdb.SMembers(ctx, queueKeysSet).Result()
 	if err != nil {
@@ -115,7 +119,8 @@ func (q *RedisQueueStore) Snapshot() ([]WaitingEntry, error) {
 // MigrateToFallback moves entries older than olderThan from city-specific pools
 // to the national pool for their prompt:age bucket. Atomic per key.
 func (q *RedisQueueStore) MigrateToFallback(olderThan time.Time) error {
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 
 	keys, err := q.rdb.SMembers(ctx, queueKeysSet).Result()
 	if err != nil {

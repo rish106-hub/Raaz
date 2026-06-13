@@ -22,23 +22,25 @@ const (
 
 // Client represents a single active WebSocket connection.
 type Client struct {
-	conn   *websocket.Conn
-	send   chan []byte // writePump drains this; never closed explicitly
-	recv   chan []byte // readPump fills this; closed when readPump exits
-	alias  string
-	params RegistrationParams
-	hub    *Hub
+	conn      *websocket.Conn
+	send      chan []byte // writePump drains this; never closed explicitly
+	recv      chan []byte // readPump fills this; closed when readPump exits
+	alias     string
+	connToken string // server-generated; required on /vault/messages POST
+	params    RegistrationParams
+	hub       *Hub
 
 	closeRecvOnce sync.Once
 }
 
 // safeSend writes data to c.send without panicking if the channel is closed,
-// and drops the message silently if the buffer is full.
+// and drops the message if the buffer is full.
 func (c *Client) safeSend(data []byte) {
 	defer func() { recover() }() //nolint:errcheck
 	select {
 	case c.send <- data:
 	default:
+		droppedMsgsTotal.Inc()
 		slog.Warn("send buffer full, dropping message", "alias", c.alias)
 	}
 }
@@ -116,8 +118,20 @@ func NewHub() *Hub {
 	}
 }
 
+// Register adds c to the hub. If another client is already registered with
+// the same anonymousID, that old client is kicked first (M-5).
 func (h *Hub) Register(c *Client) {
 	h.mu.Lock()
+	if old, ok := h.byID[c.params.AnonymousID]; ok && old != c {
+		delete(h.clients, old)
+		// Signal the old connection to close asynchronously; don't block.
+		go func() {
+			data, _ := marshalEnvelope(EventDisconnect, DisconnectPayload{Reason: "replaced_by_new_connection"})
+			old.safeSend(data)
+			old.conn.Close()
+		}()
+		slog.Warn("duplicate anonymousID kicked old connection", "anonymousID", c.params.AnonymousID)
+	}
 	h.clients[c] = struct{}{}
 	h.byID[c.params.AnonymousID] = c
 	h.mu.Unlock()
@@ -125,15 +139,23 @@ func (h *Hub) Register(c *Client) {
 	slog.Info("client connected", "anonymousID", c.params.AnonymousID)
 }
 
-// Unregister removes the client from the hub. It does NOT close c.send —
-// writePump exits naturally when the connection is closed.
+// Unregister removes the client from the hub only if it's still the current
+// owner of that anonymousID slot (pointer-identity check prevents the new
+// client from being evicted when the old connection's readPump eventually exits).
 func (h *Hub) Unregister(c *Client) {
 	h.mu.Lock()
-	delete(h.clients, c)
-	delete(h.byID, c.params.AnonymousID)
+	_, exists := h.clients[c]
+	if exists {
+		delete(h.clients, c)
+		if h.byID[c.params.AnonymousID] == c {
+			delete(h.byID, c.params.AnonymousID)
+		}
+	}
 	h.mu.Unlock()
-	wsConnectionsActive.Dec()
-	slog.Info("client disconnected", "anonymousID", c.params.AnonymousID)
+	if exists {
+		wsConnectionsActive.Dec()
+		slog.Info("client disconnected", "anonymousID", c.params.AnonymousID)
+	}
 }
 
 // LookupByID returns the live *Client for anonymousID, or nil if not connected.
@@ -141,4 +163,13 @@ func (h *Hub) LookupByID(anonymousID string) *Client {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	return h.byID[anonymousID]
+}
+
+// VerifyToken returns true if the given anonymousID has an active connection
+// whose connToken matches token (H-3/H-4 vault auth).
+func (h *Hub) VerifyToken(anonymousID, token string) bool {
+	h.mu.RLock()
+	c := h.byID[anonymousID]
+	h.mu.RUnlock()
+	return c != nil && c.connToken == token
 }

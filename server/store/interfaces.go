@@ -2,6 +2,12 @@ package store
 
 import "time"
 
+// dbTimeout is the default context deadline for all external store operations.
+const dbTimeout = 5 * time.Second
+
+// freeConvLimit is the daily conversation limit for free-tier users.
+const freeConvLimit = 2
+
 type StrikeAction int
 
 const (
@@ -46,6 +52,14 @@ type VaultMessage struct {
 	SavedAt     time.Time
 }
 
+// Prompt is a daily conversation starter.
+type Prompt struct {
+	ID       string    `json:"id"`
+	Text     string    `json:"text"`
+	Category string    `json:"category"`
+	Date     time.Time `json:"date"`
+}
+
 type StrikeStore interface {
 	RecordStrike(userID string) (StrikeResult, error)
 	IsBanned(userID string) (bool, error)
@@ -67,4 +81,20 @@ type SessionStore interface {
 type VaultStore interface {
 	SaveMessage(msg VaultMessage) error
 	GetMessages(anonIDHash string) ([]VaultMessage, error)
+	DeleteBefore(cutoff time.Time) error
+}
+
+type MatchHistoryStore interface {
+	WerePreviouslyMatched(aID, bID string) (bool, error)
+	RecordMatch(aID, bID string) error
+}
+
+type PromptStore interface {
+	GetTodayPrompt() (*Prompt, error)
+}
+
+type FreemiumStore interface {
+	// CheckAndIncrementDaily returns allowed=false when the daily limit is
+	// reached. remaining is how many conversations are left after this one.
+	CheckAndIncrementDaily(anonIDHash string) (allowed bool, remaining int, err error)
 }

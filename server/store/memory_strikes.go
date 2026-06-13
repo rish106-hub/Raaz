@@ -39,8 +39,12 @@ func (t *MemoryStrikeTracker) RecordStrike(userID string) (StrikeResult, error) 
 		t.records[userID] = rec
 	}
 	rec.strikes++
-	if rec.strikes >= 2 {
+	switch {
+	case rec.strikes == 2:
 		rec.bannedUntil = time.Now().Add(7 * 24 * time.Hour)
+		return StrikeResult{Strikes: rec.strikes, Action: StrikeActionDisconnect}, nil
+	case rec.strikes >= 3:
+		rec.bannedUntil = time.Date(9999, 1, 1, 0, 0, 0, 0, time.UTC) // permanent
 		return StrikeResult{Strikes: rec.strikes, Action: StrikeActionDisconnect}, nil
 	}
 	return StrikeResult{Strikes: rec.strikes, Action: StrikeActionWarn}, nil

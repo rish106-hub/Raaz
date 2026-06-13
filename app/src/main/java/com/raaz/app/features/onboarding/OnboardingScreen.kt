@@ -29,7 +29,8 @@ import com.raaz.app.ui.theme.RaazAccent
 import com.raaz.app.ui.theme.RaazBackground
 
 private val CATEGORIES = listOf("Identity", "Ambition", "Relationships", "Regret")
-private val AGE_BRACKETS = listOf("18–22", "23–28")
+// Must match server validAgeBuckets exactly (hyphens, not em-dashes).
+private val AGE_BRACKETS = listOf("18-22", "23-28", "29-35", "36+")
 private val CITIES = listOf("Bengaluru", "Mumbai", "Delhi NCR")
 
 @Composable

@@ -50,6 +50,17 @@ func readEnvelope(t *testing.T, conn *websocket.Conn, deadline time.Duration) En
 	return env
 }
 
+// drainRegistered reads and discards the REGISTERED envelope that the server sends
+// immediately after every successful WebSocket upgrade. Must be called once per
+// connection before reading any subsequent events (CONNECTED, MODERATION_ALERT, etc.).
+func drainRegistered(t *testing.T, conn *websocket.Conn) {
+	t.Helper()
+	env := readEnvelope(t, conn, 2*time.Second)
+	if env.Type != EventRegistered {
+		t.Fatalf("expected REGISTERED on connect, got %q", env.Type)
+	}
+}
+
 // sendMessage writes a typed envelope to conn.
 func sendMessage(t *testing.T, conn *websocket.Conn, env Envelope) {
 	t.Helper()
@@ -69,7 +80,7 @@ func TestTwoClientsMatchSameCity(t *testing.T) {
 	wsBase, cleanup := testServer(t)
 	defer cleanup()
 
-	params := "?promptId=p1&ageBucket=18-25&city=Mumbai"
+	params := "?promptId=p1&ageBucket=18-22&city=Mumbai"
 
 	// Connect both clients before reading from either so the match loop
 	// can pair them after both are in the queue.
@@ -77,6 +88,9 @@ func TestTwoClientsMatchSameCity(t *testing.T) {
 	defer connA.Close()
 	connB := dialWS(t, wsBase+params+"&anonymousId=userB")
 	defer connB.Close()
+
+	drainRegistered(t, connA)
+	drainRegistered(t, connB)
 
 	envA := readEnvelope(t, connA, 2*time.Second)
 	envB := readEnvelope(t, connB, 2*time.Second)
@@ -120,11 +134,14 @@ func TestMessageRouting(t *testing.T) {
 	wsBase, cleanup := testServer(t)
 	defer cleanup()
 
-	params := "?promptId=p2&ageBucket=26-35&city=Delhi"
+	params := "?promptId=p2&ageBucket=23-28&city=Delhi"
 	connA := dialWS(t, wsBase+params+"&anonymousId=userC")
 	defer connA.Close()
 	connB := dialWS(t, wsBase+params+"&anonymousId=userD")
 	defer connB.Close()
+
+	drainRegistered(t, connA)
+	drainRegistered(t, connB)
 
 	// Wait for both CONNECTED events.
 	readEnvelope(t, connA, 2*time.Second)
@@ -170,11 +187,14 @@ func TestTypingEventRouted(t *testing.T) {
 	wsBase, cleanup := testServer(t)
 	defer cleanup()
 
-	params := "?promptId=p3&ageBucket=18-25&city=Bangalore"
+	params := "?promptId=p3&ageBucket=18-22&city=Bangalore"
 	connA := dialWS(t, wsBase+params+"&anonymousId=userE")
 	defer connA.Close()
 	connB := dialWS(t, wsBase+params+"&anonymousId=userF")
 	defer connB.Close()
+
+	drainRegistered(t, connA)
+	drainRegistered(t, connB)
 
 	readEnvelope(t, connA, 2*time.Second)
 	readEnvelope(t, connB, 2*time.Second)
@@ -207,10 +227,13 @@ func TestNationalFallbackMatching(t *testing.T) {
 	wsBase, cleanup := testServer(t)
 	defer cleanup()
 
-	connA := dialWS(t, wsBase+"?promptId=p4&ageBucket=18-25&city=Mumbai&anonymousId=userG")
+	connA := dialWS(t, wsBase+"?promptId=p4&ageBucket=18-22&city=Mumbai&anonymousId=userG")
 	defer connA.Close()
-	connB := dialWS(t, wsBase+"?promptId=p4&ageBucket=18-25&city=Chennai&anonymousId=userH")
+	connB := dialWS(t, wsBase+"?promptId=p4&ageBucket=18-22&city=Chennai&anonymousId=userH")
 	defer connB.Close()
+
+	drainRegistered(t, connA)
+	drainRegistered(t, connB)
 
 	// With FallbackDelay = 200 ms, allow up to 2 s for the match.
 	envA := readEnvelope(t, connA, 2*time.Second)
@@ -234,12 +257,16 @@ func TestMismatchedPromptsDoNotMatch(t *testing.T) {
 	wsBase, cleanup := testServer(t)
 	defer cleanup()
 
-	connA := dialWS(t, wsBase+"?promptId=prompt-X&ageBucket=18-25&city=Mumbai&anonymousId=userI")
+	connA := dialWS(t, wsBase+"?promptId=prompt-X&ageBucket=18-22&city=Mumbai&anonymousId=userI")
 	defer connA.Close()
-	connB := dialWS(t, wsBase+"?promptId=prompt-Y&ageBucket=18-25&city=Mumbai&anonymousId=userJ")
+	connB := dialWS(t, wsBase+"?promptId=prompt-Y&ageBucket=18-22&city=Mumbai&anonymousId=userJ")
 	defer connB.Close()
 
-	// Neither client should receive CONNECTED within 500 ms.
+	// Drain the REGISTERED event first; then verify no CONNECTED arrives.
+	drainRegistered(t, connA)
+	drainRegistered(t, connB)
+
+	// Neither client should receive CONNECTED within 400 ms.
 	connA.SetReadDeadline(time.Now().Add(400 * time.Millisecond))
 	_, _, err := connA.ReadMessage()
 	if err == nil {
@@ -253,14 +280,16 @@ func TestDisconnectNotifiesPartner(t *testing.T) {
 	wsBase, cleanup := testServer(t)
 	defer cleanup()
 
-	params := "?promptId=p5&ageBucket=18-25&city=Hyderabad"
+	params := "?promptId=p5&ageBucket=18-22&city=Hyderabad"
 	connA := dialWS(t, wsBase+params+"&anonymousId=userK")
 	defer connA.Close()
 	connB := dialWS(t, wsBase+params+"&anonymousId=userL")
 	defer connB.Close()
 
-	readEnvelope(t, connA, 2*time.Second)
-	readEnvelope(t, connB, 2*time.Second)
+	drainRegistered(t, connA)
+	drainRegistered(t, connB)
+	readEnvelope(t, connA, 2*time.Second) // CONNECTED
+	readEnvelope(t, connB, 2*time.Second) // CONNECTED
 
 	// A closes the connection.
 	connA.WriteMessage(websocket.CloseMessage,
@@ -282,7 +311,7 @@ func TestMissingAnonymousIDRejected(t *testing.T) {
 	ts := httptest.NewServer(corsMiddleware(app))
 	defer ts.Close()
 
-	wsURL := "ws" + strings.TrimPrefix(ts.URL, "http") + "/ws?promptId=p1&ageBucket=18-25&city=Mumbai"
+	wsURL := "ws" + strings.TrimPrefix(ts.URL, "http") + "/ws?promptId=p1&ageBucket=18-22&city=Mumbai"
 	_, resp, err := websocket.DefaultDialer.Dial(wsURL, nil)
 	if err == nil {
 		t.Fatal("expected dial error for missing anonymousId")
@@ -298,14 +327,16 @@ func TestBidirectionalMessaging(t *testing.T) {
 	wsBase, cleanup := testServer(t)
 	defer cleanup()
 
-	params := "?promptId=p6&ageBucket=26-35&city=Pune"
+	params := "?promptId=p6&ageBucket=23-28&city=Pune"
 	connA := dialWS(t, wsBase+params+"&anonymousId=userM")
 	defer connA.Close()
 	connB := dialWS(t, wsBase+params+"&anonymousId=userN")
 	defer connB.Close()
 
-	readEnvelope(t, connA, 2*time.Second)
-	readEnvelope(t, connB, 2*time.Second)
+	drainRegistered(t, connA)
+	drainRegistered(t, connB)
+	readEnvelope(t, connA, 2*time.Second) // CONNECTED
+	readEnvelope(t, connB, 2*time.Second) // CONNECTED
 
 	// A → B
 	sendMsg := func(conn *websocket.Conn, text string) {
@@ -346,13 +377,15 @@ func TestModerationBlocksBannedPhrase(t *testing.T) {
 
 	aID := t.Name() + "-A"
 	bID := t.Name() + "-B"
-	params := "?promptId=mod-p1&ageBucket=18-25&city=Delhi"
+	params := "?promptId=mod-p1&ageBucket=18-22&city=Delhi"
 
 	connA := dialWS(t, wsBase+params+"&anonymousId="+aID)
 	defer connA.Close()
 	connB := dialWS(t, wsBase+params+"&anonymousId="+bID)
 	defer connB.Close()
 
+	drainRegistered(t, connA)
+	drainRegistered(t, connB)
 	readEnvelope(t, connA, 2*time.Second) // CONNECTED
 	readEnvelope(t, connB, 2*time.Second) // CONNECTED
 
@@ -392,15 +425,17 @@ func TestStrikeSystemDisconnectsAndBans(t *testing.T) {
 
 	aID := t.Name() + "-A"
 	bID := t.Name() + "-B"
-	params := "?promptId=mod-p2&ageBucket=18-25&city=Mumbai"
+	params := "?promptId=mod-p2&ageBucket=18-22&city=Mumbai"
 
 	connA := dialWS(t, wsBase+params+"&anonymousId="+aID)
 	defer connA.Close()
 	connB := dialWS(t, wsBase+params+"&anonymousId="+bID)
 	defer connB.Close()
 
-	readEnvelope(t, connA, 2*time.Second)
-	readEnvelope(t, connB, 2*time.Second)
+	drainRegistered(t, connA)
+	drainRegistered(t, connB)
+	readEnvelope(t, connA, 2*time.Second) // CONNECTED
+	readEnvelope(t, connB, 2*time.Second) // CONNECTED
 
 	// Strike 1: warning.
 	sendViolation(t, connA, "kill yourself")
@@ -449,15 +484,17 @@ func TestCrisisTriggerBroadcastsToBothClients(t *testing.T) {
 
 	aID := t.Name() + "-A"
 	bID := t.Name() + "-B"
-	params := "?promptId=mod-p3&ageBucket=18-25&city=Bangalore"
+	params := "?promptId=mod-p3&ageBucket=18-22&city=Bangalore"
 
 	connA := dialWS(t, wsBase+params+"&anonymousId="+aID)
 	defer connA.Close()
 	connB := dialWS(t, wsBase+params+"&anonymousId="+bID)
 	defer connB.Close()
 
-	readEnvelope(t, connA, 2*time.Second)
-	readEnvelope(t, connB, 2*time.Second)
+	drainRegistered(t, connA)
+	drainRegistered(t, connB)
+	readEnvelope(t, connA, 2*time.Second) // CONNECTED
+	readEnvelope(t, connB, 2*time.Second) // CONNECTED
 
 	sendViolation(t, connA, "i want to kill myself")
 
@@ -493,33 +530,33 @@ func TestMessagesPausedDuringCrisis(t *testing.T) {
 
 	aID := t.Name() + "-A"
 	bID := t.Name() + "-B"
-	params := "?promptId=mod-p4&ageBucket=26-35&city=Chennai"
+	params := "?promptId=mod-p4&ageBucket=23-28&city=Chennai"
 
 	connA := dialWS(t, wsBase+params+"&anonymousId="+aID)
 	defer connA.Close()
 	connB := dialWS(t, wsBase+params+"&anonymousId="+bID)
 	defer connB.Close()
 
-	readEnvelope(t, connA, 2*time.Second)
-	readEnvelope(t, connB, 2*time.Second)
+	drainRegistered(t, connA)
+	drainRegistered(t, connB)
+	readEnvelope(t, connA, 2*time.Second) // CONNECTED
+	readEnvelope(t, connB, 2*time.Second) // CONNECTED
 
 	// Trigger crisis; drain CRISIS_TRIGGERED from both sides.
 	sendViolation(t, connA, "thinking about suicide")
 	readEnvelope(t, connA, 2*time.Second)
 	readEnvelope(t, connB, 2*time.Second)
 
-	// While paused, a normal message from A must not reach B.
-	p, _ := json.Marshal(MessagePayload{MessageID: "paused", Text: "hello", SenderAlias: "x"})
+	// While paused, send a message from A — the relay must drop it.
+	// Avoid calling SetReadDeadline on connB: gorilla/websocket stores the first
+	// read error and returns it on all subsequent reads, poisoning the connection.
+	p, _ := json.Marshal(MessagePayload{MessageID: "paused", Text: "hello paused", SenderAlias: "x"})
 	sendMessage(t, connA, Envelope{Type: EventMessage, Payload: json.RawMessage(p)})
 
-	connB.SetReadDeadline(time.Now().Add(250 * time.Millisecond))
-	_, _, err := connB.ReadMessage()
-	if err == nil {
-		t.Error("B should not receive messages while session is paused")
-	}
-
-	// After pause expires, messages should flow again.
-	time.Sleep(500 * time.Millisecond)
+	// Wait for the pause to expire, then send a second message.
+	// Both messages are processed in order by the relay goroutine.
+	// If the pause worked, only the second message reaches B.
+	time.Sleep(CrisisPauseDuration + 150*time.Millisecond)
 
 	p2, _ := json.Marshal(MessagePayload{MessageID: "resumed", Text: "back now", SenderAlias: "x"})
 	sendMessage(t, connA, Envelope{Type: EventMessage, Payload: json.RawMessage(p2)})
@@ -530,8 +567,9 @@ func TestMessagesPausedDuringCrisis(t *testing.T) {
 	}
 	var mp MessagePayload
 	mustUnmarshal(t, env.Payload, &mp)
+	// If pause did NOT work, B would receive "hello paused" first.
 	if mp.Text != "back now" {
-		t.Errorf("message text: want %q, got %q", "back now", mp.Text)
+		t.Errorf("B received %q; pause may not have dropped the first message", mp.Text)
 	}
 }
 

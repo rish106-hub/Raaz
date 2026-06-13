@@ -21,7 +21,8 @@ func NewPGStrikeTracker(pool *pgxpool.Pool, rdb *redis.Client) *PGStrikeTracker 
 }
 
 func (p *PGStrikeTracker) IsBanned(userID string) (bool, error) {
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
+	defer cancel()
 
 	// Fast path: Redis ban cache.
 	val, err := p.rdb.Get(ctx, "ban:"+userID).Result()
@@ -55,7 +56,9 @@ func (p *PGStrikeTracker) IsBanned(userID string) (bool, error) {
 }
 
 func (p *PGStrikeTracker) RecordStrike(userID string) (StrikeResult, error) {
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
+	defer cancel()
+
 	tx, err := p.pool.Begin(ctx)
 	if err != nil {
 		return StrikeResult{}, err
@@ -85,10 +88,19 @@ func (p *PGStrikeTracker) RecordStrike(userID string) (StrikeResult, error) {
 
 	var bannedUntil *time.Time
 	action := StrikeActionWarn
-	if count >= 2 {
+	var redisTTL time.Duration
+
+	switch {
+	case count == 2:
 		t := time.Now().Add(7 * 24 * time.Hour)
 		bannedUntil = &t
 		action = StrikeActionDisconnect
+		redisTTL = 7 * 24 * time.Hour
+	case count >= 3:
+		t := time.Date(9999, 1, 1, 0, 0, 0, 0, time.UTC) // permanent
+		bannedUntil = &t
+		action = StrikeActionDisconnect
+		redisTTL = 100 * 365 * 24 * time.Hour
 	}
 
 	_, err = tx.Exec(ctx,
@@ -105,7 +117,7 @@ func (p *PGStrikeTracker) RecordStrike(userID string) (StrikeResult, error) {
 	}
 
 	if bannedUntil != nil {
-		p.rdb.SetEx(ctx, "ban:"+userID, "1", 7*24*time.Hour) //nolint:errcheck
+		p.rdb.SetEx(context.Background(), "ban:"+userID, "1", redisTTL) //nolint:errcheck
 	}
 
 	return StrikeResult{Strikes: count, Action: action}, nil

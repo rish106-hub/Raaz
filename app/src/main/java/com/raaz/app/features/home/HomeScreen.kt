@@ -142,7 +142,8 @@ fun HomeScreen(
             onMatched = {
                 actualMatchingViewModel.cancelMatching()
                 onEcho(prompt)
-            }
+            },
+            onRetry = { actualMatchingViewModel.startMatching(prompt) }
         )
     }
 }
