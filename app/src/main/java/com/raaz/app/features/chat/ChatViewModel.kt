@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.security.SecureRandom
 
 class ChatViewModel(
     application: Application,
@@ -49,6 +50,9 @@ class ChatViewModel(
     private val _sessionAlias = MutableStateFlow(currentUserAlias)
     val sessionAlias: StateFlow<String> = _sessionAlias.asStateFlow()
 
+    private val _partnerAlias = MutableStateFlow("")
+    val partnerAlias: StateFlow<String> = _partnerAlias.asStateFlow()
+
     private val _messages = MutableStateFlow<List<ChatMessage>>(emptyList())
     val messages: StateFlow<List<ChatMessage>> = _messages.asStateFlow()
 
@@ -60,6 +64,10 @@ class ChatViewModel(
 
     private val _extensionRequest = MutableStateFlow<ExtensionRequest?>(null)
     val extensionRequest: StateFlow<ExtensionRequest?> = _extensionRequest.asStateFlow()
+
+    // M-14: tracks whether the one permitted extension has been granted
+    private val _extensionGranted = MutableStateFlow(false)
+    val extensionGranted: StateFlow<Boolean> = _extensionGranted.asStateFlow()
 
     private val _partnerHandleExchange = MutableStateFlow<com.raaz.app.data.repository.HandleExchangeState?>(null)
     val partnerHandleExchange: StateFlow<com.raaz.app.data.repository.HandleExchangeState?> = _partnerHandleExchange.asStateFlow()
@@ -88,10 +96,14 @@ class ChatViewModel(
         ?: MutableStateFlow(ConnectionState.DISCONNECTED).asStateFlow()
 
     private var timerJob: Job? = null
-    private var remainingMs: Long = 20 * 60 * 1000L
+    // M-13: track absolute session end time to avoid drift when backgrounded
+    private var sessionEndTimeMs: Long = sessionStartTime + 20 * 60 * 1000L
     private var typingDebounceJob: Job? = null
     private var typingStopJob: Job? = null
-    private val userHandle: String = "Raaz/${(10000..99999).random()}"
+    // L-13: use SecureRandom for user handle generation
+    private val userHandle: String = "Raaz/${SecureRandom().nextInt(90000) + 10000}"
+    // M-11: ensure matchSuccess analytics fires only once per session
+    private var matchSuccessLogged = false
 
     init {
         startTimer()
@@ -103,6 +115,7 @@ class ChatViewModel(
         subscribeToHandleExchange()
         subscribeToCrisisAndModeration()
         subscribeToConnectionForAnalytics()
+        subscribeToConnectedForPartnerAlias()
     }
 
     private fun recordSession() {
@@ -170,7 +183,11 @@ class ChatViewModel(
             viewModelScope.launch {
                 chatRepository.getExtensionResponses().collect { response ->
                     if (response.approved) {
-                        startTimer(remainingMs + 600_000L)
+                        // M-14: mark extension as granted; server enforces max-1
+                        _extensionGranted.value = true
+                        // M-13: extend absolute end time (not elapsed ms)
+                        sessionEndTimeMs += 600_000L
+                        startTimer()
                         RaazAnalytics.sessionExtended()
                     }
                     _extensionRequest.value = null
@@ -211,11 +228,25 @@ class ChatViewModel(
         }
     }
 
+    // M-11: fire matchSuccess analytics only on the first CONNECTED event
     private fun subscribeToConnectionForAnalytics() {
         viewModelScope.launch {
             connectionState.collect { state ->
-                if (state == com.raaz.app.data.websocket.ConnectionState.CONNECTED) {
+                if (state == ConnectionState.CONNECTED && !matchSuccessLogged) {
+                    matchSuccessLogged = true
                     RaazAnalytics.matchSuccess()
+                }
+            }
+        }
+    }
+
+    // L-11: update partner alias from CONNECTED event and persist to session record
+    private fun subscribeToConnectedForPartnerAlias() {
+        if (chatRepository != null) {
+            viewModelScope.launch {
+                chatRepository.getConnectedEvents().collect { event ->
+                    _partnerAlias.value = event.partnerAlias
+                    chatSessionDao?.updatePartnerAlias(sessionId, event.partnerAlias)
                 }
             }
         }
@@ -229,18 +260,22 @@ class ChatViewModel(
         _crisisTriggered.value = null
     }
 
-    private fun startTimer(fromMs: Long = remainingMs) {
+    // M-13: timer counts down from absolute wall-clock end time to avoid background drift
+    private fun startTimer(endTimeMs: Long = sessionEndTimeMs) {
         timerJob?.cancel()
-        remainingMs = fromMs
+        sessionEndTimeMs = endTimeMs
         timerJob = viewModelScope.launch {
-            while (remainingMs > 0) {
-                delay(1000)
-                remainingMs -= 1000
-                val minutes = remainingMs / 60000
-                val seconds = (remainingMs % 60000) / 1000
+            while (true) {
+                val remaining = sessionEndTimeMs - System.currentTimeMillis()
+                if (remaining <= 0) {
+                    _timerText.value = "00:00"
+                    break
+                }
+                val minutes = remaining / 60000
+                val seconds = (remaining % 60000) / 1000
                 _timerText.value = "%02d:%02d".format(minutes, seconds)
+                delay(500) // check twice per second for sub-second accuracy
             }
-            _timerText.value = "00:00"
         }
     }
 

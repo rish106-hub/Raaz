@@ -4,10 +4,21 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
+
+// M-14: bump to version 2; adds extensionsUsed column to chat_sessions
+val MIGRATION_1_2 = object : Migration(1, 2) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL(
+            "ALTER TABLE chat_sessions ADD COLUMN extensionsUsed INTEGER NOT NULL DEFAULT 0"
+        )
+    }
+}
 
 @Database(
     entities = [ChatSession::class, VaultMessage::class],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class RaazDatabase : RoomDatabase() {
@@ -24,7 +35,10 @@ abstract class RaazDatabase : RoomDatabase() {
                     context.applicationContext,
                     RaazDatabase::class.java,
                     "raaz_database"
-                ).build().also { INSTANCE = it }
+                )
+                    .addMigrations(MIGRATION_1_2)
+                    .build()
+                    .also { INSTANCE = it }
             }
         }
     }

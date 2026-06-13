@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    M-16: cert pinning stub for api.raaz.app.
+    Replace the placeholder pin with the real SHA-256 of the server's leaf certificate
+    (and a backup pin of a different cert in the same chain) before releasing to production.
+
+    To get the pin:
+        openssl s_client -connect api.raaz.app:443 </dev/null 2>/dev/null \
+            | openssl x509 -pubkey -noout \
+            | openssl pkey -pubin -outform der \
+            | openssl dgst -sha256 -binary \
+            | base64
+-->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="false">api.raaz.app</domain>
+        <pin-set>
+            <!-- TODO: replace with real SHA-256 leaf pin before production release -->
+            <pin digest="SHA-256">AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</pin>
+        </pin-set>
+    </domain-config>
+
+    <!-- Allow cleartext to the emulator backend in debug only -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">10.0.2.2</domain>
+    </domain-config>
+</network-security-config>

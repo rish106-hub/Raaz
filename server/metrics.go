@@ -30,4 +30,9 @@ var (
 		Name: "raaz_crisis_triggers_total",
 		Help: "Crisis support triggers since process start.",
 	})
+
+	droppedMsgsTotal = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "raaz_dropped_messages_total",
+		Help: "Messages silently dropped due to full send buffer.",
+	})
 )

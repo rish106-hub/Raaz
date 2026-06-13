@@ -19,11 +19,13 @@ import com.raaz.app.features.chat.TimerComponent
 import com.raaz.app.features.onboarding.RaazButton
 import com.raaz.app.ui.theme.RaazBackground
 
+// M-15: onRetry allows the caller to re-enter the queue from the Error state.
 @Composable
 fun MatchingOverlay(
     state: MatchingState,
     onCancel: () -> Unit,
     onMatched: (matchId: String) -> Unit = {},
+    onRetry: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     if (state is MatchingState.Idle) {
@@ -112,6 +114,9 @@ fun MatchingOverlay(
                         fontSize = 14.sp
                     )
                     Spacer(modifier = Modifier.height(32.dp))
+                    // M-15: retry button re-enters queue without forcing user to navigate back
+                    RaazButton(text = "Try Again", onClick = onRetry)
+                    Spacer(modifier = Modifier.height(12.dp))
                     RaazButton(text = "Cancel", onClick = onCancel)
                 }
 

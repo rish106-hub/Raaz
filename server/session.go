@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	mathrand "math/rand"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -12,25 +13,35 @@ import (
 	"github.com/raaz/server/store"
 )
 
-// CrisisPauseDuration is how long message routing is suspended after a crisis
-// trigger. Overridable in tests via package-level assignment.
+// CrisisPauseDuration is how long message routing is suspended after a crisis trigger.
 var CrisisPauseDuration = 30 * time.Second
 
 // Session holds shared state for a matched pair of clients.
 type Session struct {
-	id   string
-	a, b *Client
-	// paused is set to true when a crisis is detected; the relay goroutines
-	// drop messages while paused and resume after CrisisPauseDuration.
-	paused atomic.Bool
-	ss     store.SessionStore
+	id         string
+	a, b       *Client
+	paused     atomic.Bool
+	extensions atomic.Int32 // approved extensions granted; max 1
+	done       chan struct{}
+	closeOnce  sync.Once
+	ss         store.SessionStore
+}
+
+func newSession(id string, a, b *Client, ss store.SessionStore) *Session {
+	return &Session{id: id, a: a, b: b, done: make(chan struct{}), ss: ss}
+}
+
+// close signals that the session has ended, allowing goroutines blocked on done to exit.
+func (sess *Session) close() {
+	sess.closeOnce.Do(func() { close(sess.done) })
 }
 
 // triggerCrisis pauses the session, sends CRISIS_TRIGGERED to both participants,
-// and schedules an auto-resume after CrisisPauseDuration. No-op if already paused.
+// and schedules an auto-resume. No-op if already paused. The goroutine exits
+// cleanly if the session ends before the pause timer fires (L-1 goroutine leak fix).
 func (sess *Session) triggerCrisis() {
 	if sess.paused.Swap(true) {
-		return // already in crisis mode
+		return
 	}
 	data, _ := marshalEnvelope(EventCrisisTriggered, CrisisTriggeredPayload{
 		Helplines: []string{
@@ -44,8 +55,12 @@ func (sess *Session) triggerCrisis() {
 	sess.a.safeSend(data)
 	sess.b.safeSend(data)
 	go func() {
-		time.Sleep(CrisisPauseDuration)
-		sess.paused.Store(false)
+		select {
+		case <-time.After(CrisisPauseDuration):
+			sess.paused.Store(false)
+		case <-sess.done:
+			// session ended before pause timer; exit without leaking
+		}
 	}()
 }
 
@@ -69,15 +84,21 @@ func randomAlias() string {
 // sends CONNECTED to both, then starts bidirectional relay goroutines.
 func createSession(a, b *Client, ss store.SessionStore) {
 	now := time.Now()
-	sess := &Session{id: generateID(), a: a, b: b, ss: ss}
+	sess := newSession(generateID(), a, b, ss)
 
 	a.alias = randomAlias()
 	b.alias = randomAlias()
-	for b.alias == a.alias {
+	// L-4: bound alias collision loop to prevent infinite spin on degenerate RNG
+	for attempt := 0; attempt < 10 && b.alias == a.alias; attempt++ {
 		b.alias = randomAlias()
 	}
 
-	slog.Info("session created", "sessionID", sess.id, "aliasA", a.alias, "aliasB", b.alias, "promptID", a.params.PromptID)
+	slog.Info("session created",
+		"sessionID", sess.id,
+		"aliasA", a.alias,
+		"aliasB", b.alias,
+		"promptID", a.params.PromptID,
+	)
 
 	rec := store.SessionRecord{
 		SessionID: sess.id,
@@ -116,22 +137,22 @@ func sendConnected(c *Client, matchID, partnerAlias string) {
 
 // runRelay forwards messages from src.recv to dst.send through the moderation
 // pipeline. Drops frames while sess.paused is true (crisis mode).
-// When src.recv is closed (src disconnected), notifies dst and closes dst.conn.
+// On src disconnect, closes the session and notifies dst.
 func runRelay(src, dst *Client, sess *Session) {
 	defer func() {
+		sess.close()
 		notifyDisconnect(dst)
-		// Allow writePump to flush the DISCONNECT message before forcing close.
 		time.Sleep(150 * time.Millisecond)
 		dst.conn.Close()
 	}()
 
 	for msg := range src.recv {
 		if sess.paused.Load() {
-			continue // crisis mode — drop message
+			continue
 		}
 		out := routeMessage(msg, src, sess)
 		if out == nil {
-			continue // blocked by moderation or unknown frame
+			continue
 		}
 		dst.safeSend(out)
 	}

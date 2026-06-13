@@ -41,6 +41,10 @@ class WebSocketClient(
     private var reconnectAttempts = 0
     private val maxReconnectAttempts = 5
 
+    // H-3/H-4: connToken received in REGISTERED event; required on /vault/messages POST
+    private var _connToken: String? = null
+    val connToken: String? get() = _connToken
+
     fun connect() {
         if (isConnected || reconnectAttempts > maxReconnectAttempts) return
 
@@ -59,6 +63,10 @@ class WebSocketClient(
             override fun onMessage(webSocket: WebSocket, text: String) {
                 try {
                     val event = parseWebSocketMessage(text)
+                    // Cache connToken on REGISTERED so vault POSTs can include it.
+                    if (event is WebSocketEvent.Registered) {
+                        _connToken = event.connToken
+                    }
                     _events.tryEmit(event)
                 } catch (e: Exception) {
                     Log.e("WebSocket", "Error parsing message: ${e.message}")
@@ -68,6 +76,16 @@ class WebSocketClient(
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: okhttp3.Response?) {
                 Log.e("WebSocket", "Connection failed: ${t.message}")
                 isConnected = false
+                // H-10/H-6: 429 = rate-limited; don't retry
+                if (response?.code == 429) {
+                    Log.w("WebSocket", "Rate limited (429) — not retrying")
+                    _connectionState.value = ConnectionState.DISCONNECTED
+                    _events.tryEmit(WebSocketEvent.Error(
+                        message = "daily conversation limit reached",
+                        code = "429"
+                    ))
+                    return
+                }
                 if (reconnectAttempts < maxReconnectAttempts) {
                     _connectionState.value = ConnectionState.RECONNECTING
                 } else {
@@ -132,6 +150,9 @@ class WebSocketClient(
             val p = root.getAsJsonObject("payload") ?: root
 
             when (type) {
+                "REGISTERED" -> WebSocketEvent.Registered(
+                    connToken = p.get("connToken")?.asString ?: ""
+                )
                 "CONNECTED" -> WebSocketEvent.Connected(
                     matchId = p.get("matchId")?.asString ?: "",
                     partnerAlias = p.get("partnerAlias")?.asString ?: "",

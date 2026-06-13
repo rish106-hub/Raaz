@@ -26,15 +26,12 @@ func routeMessage(raw []byte, src *Client, sess *Session) []byte {
 	case EventExtensionRequest:
 		return handleExtensionRequest(env.Payload, src)
 	case EventExtensionResponse:
-		return handleExtensionResponse(env.Payload, src)
+		return handleExtensionResponse(env.Payload, src, sess)
 	case EventHandleExchange:
 		return handleHandleExchange(env.Payload, src)
 	case EventHandleRevealed:
-		// Forwarded verbatim: payload is server-opaque (handle string not
-		// inspected here; the Android client controls reveal logic).
 		return raw
 	default:
-		// Unknown types dropped; avoids forwarding unexpected client frames.
 		slog.Warn("unknown event type", "type", env.Type, "alias", src.alias)
 		return nil
 	}
@@ -45,14 +42,12 @@ func handleChatMessage(payload json.RawMessage, src *Client, sess *Session) []by
 	if err := json.Unmarshal(payload, &p); err != nil {
 		return nil
 	}
-	// Server enforces sender identity and timestamps.
 	p.SenderAlias = src.alias
 	p.Timestamp = time.Now().UnixMilli()
 
 	result := Moderate(p.Text)
 
 	if result.IsCrisis {
-		// Trigger crisis support overlay on both clients; drop the message.
 		crisisTriggersTotal.Inc()
 		sess.triggerCrisis()
 		return nil
@@ -67,14 +62,12 @@ func handleChatMessage(payload json.RawMessage, src *Client, sess *Session) []by
 		}
 		notifyModerationAlert(src, result, strike)
 		if strike.Action == store.StrikeActionDisconnect {
-			// Give the MODERATION_ALERT frame a chance to reach the client
-			// before the connection is closed.
 			go func() {
 				time.Sleep(500 * time.Millisecond)
 				src.conn.Close()
 			}()
 		}
-		return nil // blocked — partner never sees this message
+		return nil
 	}
 
 	out, err := marshalEnvelope(EventMessage, p)
@@ -84,7 +77,6 @@ func handleChatMessage(payload json.RawMessage, src *Client, sess *Session) []by
 	return out
 }
 
-// notifyModerationAlert sends a MODERATION_ALERT to the offending client only.
 func notifyModerationAlert(c *Client, mod ModerationResult, strike store.StrikeResult) {
 	action := "warning"
 	if strike.Action == store.StrikeActionDisconnect {
@@ -128,12 +120,19 @@ func handleExtensionRequest(payload json.RawMessage, src *Client) []byte {
 	return out
 }
 
-func handleExtensionResponse(payload json.RawMessage, src *Client) []byte {
+// handleExtensionResponse enforces max-1 extension per session (M-2).
+// A second approved extension response is silently dropped.
+func handleExtensionResponse(payload json.RawMessage, src *Client, sess *Session) []byte {
 	var p ExtensionResponsePayload
 	if err := json.Unmarshal(payload, &p); err != nil {
 		return nil
 	}
 	p.ResponderAlias = src.alias
+	if p.Approved {
+		if sess.extensions.Add(1) > 1 {
+			return nil // second extension blocked server-side
+		}
+	}
 	out, err := marshalEnvelope(EventExtensionResponse, p)
 	if err != nil {
 		return nil

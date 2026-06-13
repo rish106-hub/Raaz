@@ -3,12 +3,11 @@ package store
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"time"
 
 	"github.com/redis/go-redis/v9"
 )
-
-const sessionTTL = 20 * time.Minute
 
 type RedisSessionStore struct {
 	rdb *redis.Client
@@ -25,12 +24,20 @@ func (s *RedisSessionStore) Save(rec SessionRecord) error {
 	if err != nil {
 		return err
 	}
-	return s.rdb.SetEx(context.Background(), sessionKey(rec.SessionID), data, sessionTTL).Err()
+	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
+	defer cancel()
+	ttl := time.Until(rec.ExpiresAt)
+	if ttl <= 0 {
+		ttl = 20 * time.Minute
+	}
+	return s.rdb.SetEx(ctx, sessionKey(rec.SessionID), data, ttl).Err()
 }
 
 func (s *RedisSessionStore) Get(sessionID string) (*SessionRecord, error) {
-	data, err := s.rdb.Get(context.Background(), sessionKey(sessionID)).Bytes()
-	if err == redis.Nil {
+	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
+	defer cancel()
+	data, err := s.rdb.Get(ctx, sessionKey(sessionID)).Bytes()
+	if errors.Is(err, redis.Nil) {
 		return nil, nil
 	}
 	if err != nil {
@@ -44,5 +51,7 @@ func (s *RedisSessionStore) Get(sessionID string) (*SessionRecord, error) {
 }
 
 func (s *RedisSessionStore) Delete(sessionID string) error {
-	return s.rdb.Del(context.Background(), sessionKey(sessionID)).Err()
+	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
+	defer cancel()
+	return s.rdb.Del(ctx, sessionKey(sessionID)).Err()
 }

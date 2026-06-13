@@ -8,5 +8,7 @@ data class ChatSession(
     @PrimaryKey val sessionId: String,
     val startedAt: Long,
     val prompt: String,
-    val partnerAlias: String
+    val partnerAlias: String,
+    // M-14: track extensions used per session (max 1 server-side)
+    val extensionsUsed: Int = 0
 )

@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -15,9 +16,9 @@ func NewPGVaultStore(pool *pgxpool.Pool) *PGVaultStore {
 }
 
 func (v *PGVaultStore) SaveMessage(msg VaultMessage) error {
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
+	defer cancel()
 
-	// Upsert user before inserting message (FK constraint).
 	_, err := v.pool.Exec(ctx,
 		`INSERT INTO users (anon_id_hash) VALUES ($1)
 		 ON CONFLICT (anon_id_hash) DO UPDATE SET last_seen_at = now()`,
@@ -39,7 +40,9 @@ func (v *PGVaultStore) SaveMessage(msg VaultMessage) error {
 }
 
 func (v *PGVaultStore) GetMessages(anonIDHash string) ([]VaultMessage, error) {
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
+	defer cancel()
+
 	rows, err := v.pool.Query(ctx,
 		`SELECT anon_id_hash, message_id, session_id, prompt, text, sender_alias, saved_at
 		 FROM vault_messages WHERE anon_id_hash = $1 ORDER BY saved_at DESC`,
@@ -60,4 +63,13 @@ func (v *PGVaultStore) GetMessages(anonIDHash string) ([]VaultMessage, error) {
 		msgs = append(msgs, m)
 	}
 	return msgs, rows.Err()
+}
+
+func (v *PGVaultStore) DeleteBefore(cutoff time.Time) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	_, err := v.pool.Exec(ctx,
+		`DELETE FROM vault_messages WHERE saved_at < $1`, cutoff,
+	)
+	return err
 }

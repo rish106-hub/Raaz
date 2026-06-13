@@ -188,6 +188,10 @@ class ChatRepository(
             }
     }
 
+    // L-11: expose CONNECTED payloads so ChatViewModel can display partner alias
+    fun getConnectedEvents(): Flow<WebSocketEvent.Connected> =
+        webSocketClient.events.filterIsInstance()
+
     fun disconnect() {
         webSocketClient.disconnect()
     }

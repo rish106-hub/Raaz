@@ -15,4 +15,10 @@ interface ChatSessionDao {
 
     @Query("SELECT * FROM chat_sessions WHERE sessionId = :sessionId LIMIT 1")
     suspend fun getSession(sessionId: String): ChatSession?
+
+    @Query("UPDATE chat_sessions SET partnerAlias = :alias WHERE sessionId = :sessionId")
+    suspend fun updatePartnerAlias(sessionId: String, alias: String)
+
+    @Query("UPDATE chat_sessions SET extensionsUsed = extensionsUsed + 1 WHERE sessionId = :sessionId")
+    suspend fun incrementExtensionsUsed(sessionId: String)
 }
