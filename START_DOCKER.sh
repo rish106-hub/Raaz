@@ -1,0 +1,16 @@
+#!/bin/bash
+
+echo "🐳 Starting Docker Desktop..."
+echo ""
+echo "To start Docker Desktop on macOS:"
+echo "1. Press Cmd+Space (Spotlight search)"
+echo "2. Type 'Docker'"
+echo "3. Press Enter"
+echo ""
+echo "Wait for the Docker icon to appear in the menu bar (top right)"
+echo "Once it's ready, run:"
+echo ""
+echo "   make docker-up"
+echo ""
+echo "To check if Docker is running:"
+echo "   docker ps"

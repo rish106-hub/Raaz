@@ -1,0 +1,145 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                     RAAZ PROJECT - QUICK START GUIDE                          ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+✅ INSTALLED:
+   • Go 1.26.4 (darwin/arm64)
+   • Docker 29.5.3
+   • Go dependencies (go mod tidy completed)
+   • Server binary built (./raaz-server)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🚀 OPTION 1: RUN LOCALLY (NO DATABASE)
+
+   $ make run
+   
+   Or directly:
+   $ ./raaz-server
+   
+   ✓ Server runs at http://localhost:8080
+   ✓ Uses in-memory storage (data lost on restart)
+   ✓ Perfect for testing WebSocket flows
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🐳 OPTION 2: RUN WITH DOCKER (PostgreSQL + Redis)
+
+   Prerequisites:
+   • Open Docker Desktop (search "Docker" in Spotlight)
+   • Wait for Docker daemon to start (~30 seconds)
+
+   Then run:
+   $ make docker-up
+   
+   ✓ PostgreSQL running on localhost:5432 (user: raaz, db: raaz)
+   ✓ Redis running on localhost:6379
+   ✓ Server running on http://localhost:8080
+   ✓ Persistent data stored in PostgreSQL
+   
+   Stop with:
+   $ make docker-down
+   
+   View logs:
+   $ make docker-logs
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📋 COMMON COMMANDS
+
+   Build:
+   $ make build              # Rebuild binary
+   $ make install-deps       # Update Go dependencies
+   
+   Testing:
+   $ make test               # Run all tests
+   $ make test-race          # Run with race detector
+   
+   Code Quality:
+   $ make fmt                # Format code
+   $ make lint               # Run linter
+   $ make all                # Format → Lint → Test → Build
+   
+   Docker:
+   $ make docker-up          # Start full stack
+   $ make docker-down        # Stop full stack
+   $ make docker-logs        # Stream server logs
+   $ make docker-db-logs     # Stream DB logs
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🏗️  PROJECT STRUCTURE
+
+   server/
+   ├── main.go              → Entry point
+   ├── app.go               → Core app logic
+   ├── router.go            → HTTP routes
+   ├── hub.go               → WebSocket manager
+   ├── matching.go          → Matching algorithm
+   ├── session.go           → Session management
+   ├── message.go           → Message routing
+   ├── moderation.go        → Content moderation
+   ├── db/
+   │   ├── postgres.go      → PostgreSQL client
+   │   └── redis.go         → Redis client
+   └── store/               → Data persistence layer
+       ├── pg_*.go          → PostgreSQL implementations
+       ├── redis_*.go       → Redis implementations
+       └── memory_*.go      → In-memory implementations
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📚 DOCUMENTATION
+
+   • SETUP.md        → Comprehensive setup guide
+   • README.md       → Project overview (Raaz platform description)
+   • PRD.md          → Product requirements document
+   • server/go.mod   → Go dependencies
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🔧 ENVIRONMENT
+
+   File: .env (created automatically)
+   
+   DATABASE_URL=postgres://raaz:changeme@postgres:5432/raaz?sslmode=disable
+   REDIS_URL=redis://redis:6379
+   POSTGRES_PASSWORD=changeme
+   PORT=8080
+   LOG_FORMAT=json
+
+   Change any value and restart the server.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🚨 TROUBLESHOOTING
+
+   Issue: "port 8080 already in use"
+   → Change PORT in .env or: $ lsof -i :8080 && kill -9 <PID>
+
+   Issue: "docker: command not found"
+   → Docker Desktop not installed or not in PATH
+   → Install: brew install docker (already done)
+   → Or use: docker-compose (if installed separately)
+
+   Issue: "Cannot connect to PostgreSQL"
+   → Ensure docker-compose up succeeded
+   → Check: docker-compose ps
+
+   Issue: "Tests failing with WebSocket errors"
+   → Normal for parallel tests. Run: make test-race
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+💡 TIPS
+
+   • VS Code + Go extension recommended for development
+   • Use `make all` before committing to catch issues
+   • Docker volumes persist data between restarts
+   • In-memory mode is great for rapid testing
+   • Full Docker stack is closest to production
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Next: Run `make help` for all available commands!
+
