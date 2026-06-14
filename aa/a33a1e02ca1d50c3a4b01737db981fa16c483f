@@ -1,0 +1,43 @@
+RUN_NOW.md
+  s_1cab3b77bfe862::t_df6271a65872d9 1-173
+Makefile
+  s_1cab3b77bfe862::t_997eac04a9c073 1-72
+PROJECT_OVERVIEW.md
+  s_1cab3b77bfe862::t_d5f1f513248687 1-282
+FIRST_RUN.sh
+  s_1cab3b77bfe862::t_4aa0cbf4929efb 1-37
+SETUP.md
+  s_1cab3b77bfe862::t_3c42d04ebcf574 1-199
+QUICKSTART.txt
+  s_1cab3b77bfe862::t_58c7120b87c222 1-145
+START_APP.sh
+  s_1cab3b77bfe862::t_762b93721d5a94 1-62
+START_DOCKER.sh
+  s_1cab3b77bfe862::t_d83b1ee9ccde57 1-16
+ANDROID_SETUP.md
+  s_1cab3b77bfe862::t_feacede87d7a81 1-314
+ALL_DOCS.txt
+  s_1cab3b77bfe862::t_e9bda28d2e05bc 1-162
+RUN_ANDROID_APP.md
+  s_1cab3b77bfe862::t_c4f2a4205f7b6d 1-213
+READY_TO_RUN.txt
+  s_1cab3b77bfe862::t_d90577deb6b4df 1-107
+ANDROID_QUICKSTART.sh
+  s_1cab3b77bfe862::t_7ab0602b7fa7a0 1-53
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.6",
+  "base_commit_sha": "aaa33a1e02ca1d50c3a4b01737db981fa16c483f",
+  "prompts": {},
+  "sessions": {
+    "s_1cab3b77bfe862": {
+      "agent_id": {
+        "tool": "github-copilot-cli",
+        "id": "909ad7e0-b68e-4064-8989-e35e2f78722a",
+        "model": "claude-haiku-4.5"
+      },
+      "human_author": "RISHAV DEWAN <rishavdewan10@gmail.com>"
+    }
+  }
+}
